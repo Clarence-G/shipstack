@@ -21,6 +21,8 @@ export const session = pgTable('session', {
   userId: text('user_id')
     .notNull()
     .references(() => user.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
 })
 
 export const account = pgTable('account', {
