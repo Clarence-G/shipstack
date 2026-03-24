@@ -6,8 +6,8 @@
     "dev": "bun run --hot src/index.ts",
     "db:create": "bun run src/db/create.ts",
     "db:seed": "bun run src/db/seed.ts",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:generate": "bunx drizzle-kit generate",
+    "db:migrate": "bunx drizzle-kit migrate"
   },
   "dependencies": {
     "@myapp/contract": "workspace:*",
