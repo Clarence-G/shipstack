@@ -17,8 +17,8 @@ export function LoginPage() {
     try {
       await signIn.email({ email, password })
       navigate('/')
-    } catch {
-      setError('Invalid email or password')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Invalid email or password')
     } finally {
       setLoading(false)
     }

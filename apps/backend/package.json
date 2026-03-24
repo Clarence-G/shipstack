@@ -4,8 +4,10 @@
   "type": "module",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
-    "db:generate": "bunx drizzle-kit generate",
-    "db:migrate": "bunx drizzle-kit migrate"
+    "db:create": "bun run src/db/create.ts",
+    "db:seed": "bun run src/db/seed.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
     "@myapp/contract": "workspace:*",

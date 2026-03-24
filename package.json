@@ -3,10 +3,15 @@
   "private": true,
   "workspaces": ["packages/*", "apps/*"],
   "scripts": {
-    "dev": "bun run dev:backend & bun run dev:frontend",
+    "dev": "concurrently -k -n be,fe -c blue,green \"bun run dev:backend\" \"bun run dev:frontend\"",
     "dev:backend": "bun run --filter @myapp/backend dev",
     "dev:frontend": "bun run --filter @myapp/frontend dev",
     "db:generate": "bun run --filter @myapp/backend db:generate",
+    "db:create": "bun run --filter @myapp/backend db:create",
+    "db:seed": "bun run --filter @myapp/backend db:seed",
     "db:migrate": "bun run --filter @myapp/backend db:migrate"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }
