@@ -1,0 +1,12 @@
+{
+  "name": "orpc-template",
+  "private": true,
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev": "bun run dev:backend & bun run dev:frontend",
+    "dev:backend": "bun run --filter @myapp/backend dev",
+    "dev:frontend": "bun run --filter @myapp/frontend dev",
+    "db:generate": "bun run --filter @myapp/backend db:generate",
+    "db:migrate": "bun run --filter @myapp/backend db:migrate"
+  }
+}

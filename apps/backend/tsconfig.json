@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "paths": {
+      "@myapp/contract": ["../../packages/contract/src"]
+    }
+  },
+  "include": ["src"]
+}

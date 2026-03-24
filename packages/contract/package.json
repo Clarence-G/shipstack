@@ -1,0 +1,14 @@
+{
+  "name": "@myapp/contract",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@orpc/contract": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "ai": "latest"
+  }
+}
