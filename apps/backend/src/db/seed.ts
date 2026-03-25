@@ -1,3 +1,4 @@
+import { db } from './index'
 import { auth } from '../lib/auth'
 
 const TEST_USER = {
@@ -8,9 +9,7 @@ const TEST_USER = {
 
 console.log(`Seeding test user: ${TEST_USER.email}`)
 
-const result = await auth.api.signUpEmail({
-  body: TEST_USER,
-})
+const result = await auth.api.signUpEmail({ body: TEST_USER })
 
 if (result.user) {
   console.log(`Test user created: ${result.user.email} (id: ${result.user.id})`)
