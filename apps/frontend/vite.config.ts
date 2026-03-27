@@ -11,11 +11,11 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    port: 4000,
     strictPort: true,
     proxy: {
-      '/api': 'http://localhost:3001',
-      '/rpc': 'http://localhost:3001',
+      '/api': 'http://localhost:4001',
+      '/rpc': 'http://localhost:4001',
     },
   },
 })

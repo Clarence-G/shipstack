@@ -11,7 +11,7 @@ const app = new Hono()
 app.use(
   '*',
   cors({
-    origin: process.env.FRONTEND_URL ?? 'http://localhost:5173',
+    origin: process.env.FRONTEND_URL ?? 'http://localhost:4000',
     allowHeaders: ['Content-Type', 'Authorization'],
     allowMethods: ['POST', 'GET', 'OPTIONS'],
     credentials: true,
@@ -47,6 +47,6 @@ app.use('/rpc/*', async (c, next) => {
 app.get('/health', (c) => c.json({ status: 'ok' }))
 
 export default {
-  port: Number(process.env.PORT ?? 3001),
+  port: Number(process.env.PORT ?? 4001),
   fetch: app.fetch,
 }
