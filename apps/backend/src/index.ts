@@ -47,6 +47,7 @@ app.use('/rpc/*', async (c, next) => {
 app.get('/health', (c) => c.json({ status: 'ok' }))
 
 export default {
+  hostname: '0.0.0.0',
   port: Number(process.env.PORT ?? 4001),
   fetch: app.fetch,
 }
