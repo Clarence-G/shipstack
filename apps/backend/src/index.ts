@@ -7,11 +7,11 @@ import { router } from './routers'
 
 const app = new Hono()
 
-// CORS — must be registered before routes
+// CORS — reflect request origin for sandbox compatibility (dynamic port mapping)
 app.use(
   '*',
   cors({
-    origin: process.env.FRONTEND_URL ?? 'http://localhost:4000',
+    origin: (origin) => origin ?? '*',
     allowHeaders: ['Content-Type', 'Authorization'],
     allowMethods: ['POST', 'GET', 'OPTIONS'],
     credentials: true,
