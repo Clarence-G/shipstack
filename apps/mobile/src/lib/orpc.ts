@@ -1,6 +1,7 @@
 import { createORPCClient } from '@orpc/client'
 import { RPCLink } from '@orpc/client/fetch'
 import { createTanstackQueryUtils } from '@orpc/tanstack-query'
+import { Platform } from 'react-native'
 import type { ContractRouterClient } from '@orpc/contract'
 import type { contract } from '@myapp/contract'
 
@@ -10,11 +11,14 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4001'
 
 const link = new RPCLink({
   url: `${API_URL}/rpc`,
-  headers: async () => {
-    return {
+  // Native: send cookie header from SecureStore
+  ...(Platform.OS !== 'web' && {
+    headers: async () => ({
       cookie: await getCookie(),
-    }
-  },
+    }),
+  }),
+  // Web: let the browser send cookies automatically
+  fetch: (input, init) => fetch(input, { ...init, credentials: 'include' }),
 })
 
 /**
