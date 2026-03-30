@@ -1,31 +1,54 @@
-import { StatusBar } from "expo-status-bar";
-import { Text, View } from "react-native";
+import { useEffect } from "react"
+import { View, Text, Pressable, ActivityIndicator } from "react-native"
+import { useRouter } from "expo-router"
+import { useSession, signOut } from "@/lib/auth-client"
 
-export default function App() {
+export default function HomeScreen() {
+  const { data: session, isPending } = useSession()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!isPending && !session) {
+      router.replace("/auth/login")
+    }
+  }, [session, isPending])
+
+  if (isPending) {
+    return (
+      <View className="flex-1 items-center justify-center">
+        <ActivityIndicator size="large" />
+      </View>
+    )
+  }
+
+  if (!session) {
+    return null
+  }
+
+  const handleSignOut = async () => {
+    await signOut()
+    router.replace("/auth/login")
+  }
+
   return (
-    <View className="flex-1 bg-white dark:bg-black items-center justify-center px-8">
-      {/* Heading */}
-      <Text className="text-4xl font-extrabold text-gray-800 dark:text-white mb-3 tracking-tight">
-        🚀 Welcome
-      </Text>
-
-      {/* Subheading */}
-      <Text className="text-xl dark:text-white text-gray-700 mb-8 text-center leading-relaxed">
-        Build beautiful apps with{" "}
-        <Text className="text-blue-500 font-semibold">
-          Expo (Router) + Uniwind 🔥
+    <View className="flex-1 px-6 pt-12">
+      <View className="gap-2">
+        <Text className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+          Welcome, {session.user.name}
         </Text>
-      </Text>
-
-      {/* Instruction text */}
-      <Text className="text-base text-gray-600 dark:text-white text-center max-w-sm">
-        Start customizing your app by editing{" "}
-        <Text className="font-semibold text-gray-800 dark:text-white">
-          app/index.tsx
+        <Text className="text-base text-gray-500 dark:text-gray-400">
+          You are logged in as {session.user.email}.
         </Text>
-      </Text>
+      </View>
 
-      <StatusBar style="dark" />
+      <Pressable
+        onPress={handleSignOut}
+        className="mt-8 items-center rounded-lg border border-gray-300 py-3 active:bg-gray-100 dark:border-gray-600 dark:active:bg-gray-800"
+      >
+        <Text className="text-base font-medium text-gray-700 dark:text-gray-300">
+          Sign Out
+        </Text>
+      </Pressable>
     </View>
-  );
+  )
 }
