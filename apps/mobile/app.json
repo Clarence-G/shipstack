@@ -1,12 +1,12 @@
 {
   "expo": {
-    "scheme": "acme",
+    "name": "MyApp Mobile",
+    "slug": "myapp-mobile",
+    "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "orientation": "default",
     "web": {
       "output": "static"
-    },
-    "name": "mobile",
-    "slug": "mobile"
+    }
   }
 }

@@ -1,15 +1,23 @@
 const { getDefaultConfig } = require("expo/metro-config");
-const { withUniwindConfig } = require("uniwind/metro"); // make sure this import exists
+const { withUniwindConfig } = require("uniwind/metro");
+const path = require("path");
+
+const projectRoot = __dirname;
+const monorepoRoot = path.resolve(projectRoot, "../..");
 
 /** @type {import('expo/metro-config').MetroConfig} */
-const config = getDefaultConfig(__dirname);
+const config = getDefaultConfig(projectRoot);
 
-// Apply uniwind modifications before exporting
-const uniwindConfig = withUniwindConfig(config, {
-  // relative path to your global.css file
+// Monorepo: watch all files in the monorepo
+config.watchFolders = [monorepoRoot];
+
+// Monorepo: resolve packages from both project and monorepo root
+config.resolver.nodeModulesPaths = [
+  path.resolve(projectRoot, "node_modules"),
+  path.resolve(monorepoRoot, "node_modules"),
+];
+
+module.exports = withUniwindConfig(config, {
   cssEntryFile: "./src/global.css",
-  // optional: path to typings
   dtsFile: "./src/uniwind-types.d.ts",
 });
-
-module.exports = uniwindConfig;
