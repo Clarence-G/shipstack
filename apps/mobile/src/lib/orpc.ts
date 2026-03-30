@@ -4,11 +4,17 @@ import { createTanstackQueryUtils } from '@orpc/tanstack-query'
 import type { ContractRouterClient } from '@orpc/contract'
 import type { contract } from '@myapp/contract'
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001'
+import { getCookie } from './auth-client'
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4001'
 
 const link = new RPCLink({
   url: `${API_URL}/rpc`,
-  fetch: (url, options) => fetch(url, { ...options, credentials: 'include' }),
+  headers: async () => {
+    return {
+      cookie: await getCookie(),
+    }
+  },
 })
 
 /**

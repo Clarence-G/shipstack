@@ -7,6 +7,9 @@
     "orientation": "default",
     "web": {
       "output": "static"
-    }
+    },
+    "plugins": [
+      "expo-secure-store"
+    ]
   }
 }

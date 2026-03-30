@@ -10,15 +10,16 @@
     "db:migrate": "bunx drizzle-kit migrate"
   },
   "dependencies": {
+    "@ai-sdk/openai": "latest",
+    "@better-auth/expo": "^1.5.6",
     "@myapp/contract": "workspace:*",
-    "@orpc/server": "latest",
     "@orpc/openapi": "latest",
-    "hono": "latest",
+    "@orpc/server": "latest",
+    "ai": "latest",
     "better-auth": "latest",
     "drizzle-orm": "latest",
+    "hono": "latest",
     "postgres": "latest",
-    "ai": "latest",
-    "@ai-sdk/openai": "latest",
     "zod": "latest"
   },
   "devDependencies": {

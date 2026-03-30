@@ -17,6 +17,9 @@ config.resolver.nodeModulesPaths = [
   path.resolve(monorepoRoot, "node_modules"),
 ];
 
+// Enable package.json "exports" field resolution (needed for @better-auth/expo/client etc.)
+config.resolver.unstable_enablePackageExports = true;
+
 module.exports = withUniwindConfig(config, {
   cssEntryFile: "./src/global.css",
   dtsFile: "./src/uniwind-types.d.ts",

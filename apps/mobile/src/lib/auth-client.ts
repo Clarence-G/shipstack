@@ -1,15 +1,29 @@
 import { createAuthClient } from 'better-auth/react'
+import { expoClient } from '@better-auth/expo/client'
+import * as SecureStore from 'expo-secure-store'
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4001'
 
 const authClient = createAuthClient({
   baseURL: API_URL,
+  plugins: [
+    expoClient({
+      scheme: 'myapp',
+      storagePrefix: 'myapp',
+      storage: SecureStore,
+    }),
+  ],
 })
 
 /**
  * Better Auth session hook — use in components for auth state.
  */
 export const { useSession } = authClient
+
+/**
+ * Get stored cookie header for authenticated fetch requests (oRPC, etc.).
+ */
+export const getCookie = authClient.getCookie
 
 /**
  * Wrap a Better Auth method so it throws on error instead of returning { data, error }.
