@@ -32,15 +32,20 @@ A monorepo scaffold for building **type-safe full-stack applications** with oRPC
 │   │       ├── routers/     # Route handlers (auth, ai)
 │   │       ├── db/          # Drizzle schema + connection
 │   │       └── lib/         # Auth config, AI model setup
-│   └── frontend/            # React SPA (port 5173)
+│   ├── frontend/            # React SPA (port 5173)
+│   │   └── src/
+│   │       ├── lib/         # oRPC client, auth client, utils
+│   │       ├── pages/       # Route pages (home, login, register)
+│   │       ├── layouts/     # Root layout with nav
+│   │       └── components/
+│   │           ├── ui/      # shadcn/ui components
+│   │           ├── biz/     # Business components (chat)
+│   │           └── shared/  # Shared components
+│   └── mobile/              # React Native app (Expo, port 8081)
 │       └── src/
-│           ├── lib/         # oRPC client, auth client, utils
-│           ├── pages/       # Route pages (home, login, register)
-│           ├── layouts/     # Root layout with nav
-│           └── components/
-│               ├── ui/      # shadcn/ui components
-│               ├── biz/     # Business components (chat)
-│               └── shared/  # Shared components
+│           ├── app/          # Expo Router file routes
+│           ├── lib/          # oRPC client, auth client
+│           └── global.css    # Tailwind + Uniwind entry
 ├── package.json             # Workspace scripts
 ├── tsconfig.base.json       # Shared TypeScript config
 └── .env.example             # Environment variables template
@@ -52,8 +57,8 @@ A monorepo scaffold for building **type-safe full-stack applications** with oRPC
 packages/contract (Zod schemas + oRPC contract)
        │
        ├──► apps/backend:  implement(contract) enforces handler types
-       │
-       └──► apps/frontend: ContractRouterClient<typeof contract> enforces client types
+       ├──► apps/frontend: ContractRouterClient<typeof contract> enforces client types
+       └──► apps/mobile:   ContractRouterClient<typeof contract> enforces client types
 ```
 
 The contract package defines every API procedure's input/output using Zod. Both sides import the contract **source** directly (via TypeScript path aliases) — no build step needed. If a backend handler returns the wrong shape or a frontend call passes the wrong args, `tsc` catches it.
@@ -101,6 +106,7 @@ This starts:
 | `bun run dev` | Start both frontend and backend |
 | `bun run dev:backend` | Start backend only |
 | `bun run dev:frontend` | Start frontend only |
+| `bun run dev:mobile` | Start mobile Expo dev server |
 | `bun run db:create` | Create the PostgreSQL database |
 | `bun run db:generate` | Generate Drizzle migration files |
 | `bun run db:migrate` | Apply database migrations |
