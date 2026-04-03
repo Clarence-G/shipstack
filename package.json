@@ -10,9 +10,16 @@
     "db:generate": "bun run --filter @myapp/backend db:generate",
     "db:create": "bun run --filter @myapp/backend db:create",
     "db:seed": "bun run --filter @myapp/backend db:seed",
-    "db:migrate": "bun run --filter @myapp/backend db:migrate"
+    "db:migrate": "bun run --filter @myapp/backend db:migrate",
+    "lint": "bunx biome check .",
+    "lint:fix": "bunx biome check --write .",
+    "format": "bunx biome format --write .",
+    "prepare": "lefthook install"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "@biomejs/biome": "^2.4.10",
+    "concurrently": "^9.2.1",
+    "lefthook": "^2.1.4",
+    "shadcn": "^4.1.1"
   }
 }

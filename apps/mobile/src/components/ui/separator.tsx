@@ -1,5 +1,5 @@
-import { cn } from '@/lib/utils';
-import * as SeparatorPrimitive from '@rn-primitives/separator';
+import * as SeparatorPrimitive from '@rn-primitives/separator'
+import { cn } from '@/lib/utils'
 
 function Separator({
   className,
@@ -14,11 +14,11 @@ function Separator({
       className={cn(
         'bg-border shrink-0',
         orientation === 'horizontal' ? 'h-[1px] w-full' : 'h-full w-[1px]',
-        className
+        className,
       )}
       {...props}
     />
-  );
+  )
 }
 
-export { Separator };
+export { Separator }

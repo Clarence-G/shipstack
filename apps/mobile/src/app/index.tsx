@@ -1,7 +1,7 @@
-import { useEffect } from "react"
-import { View, Text, Pressable, ActivityIndicator } from "react-native"
-import { useRouter } from "expo-router"
-import { useSession, signOut } from "@/lib/auth-client"
+import { useRouter } from 'expo-router'
+import { useEffect } from 'react'
+import { ActivityIndicator, Pressable, Text, View } from 'react-native'
+import { signOut, useSession } from '@/lib/auth-client'
 
 export default function HomeScreen() {
   const { data: session, isPending } = useSession()
@@ -9,9 +9,9 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!isPending && !session) {
-      router.replace("/auth/login")
+      router.replace('/auth/login')
     }
-  }, [session, isPending])
+  }, [session, isPending, router.replace])
 
   if (isPending) {
     return (
@@ -27,7 +27,7 @@ export default function HomeScreen() {
 
   const handleSignOut = async () => {
     await signOut()
-    router.replace("/auth/login")
+    router.replace('/auth/login')
   }
 
   return (
@@ -45,9 +45,7 @@ export default function HomeScreen() {
         onPress={handleSignOut}
         className="mt-8 items-center rounded-lg border border-gray-300 py-3 active:bg-gray-100 dark:border-gray-600 dark:active:bg-gray-800"
       >
-        <Text className="text-base font-medium text-gray-700 dark:text-gray-300">
-          Sign Out
-        </Text>
+        <Text className="text-base font-medium text-gray-700 dark:text-gray-300">Sign Out</Text>
       </Pressable>
     </View>
   )

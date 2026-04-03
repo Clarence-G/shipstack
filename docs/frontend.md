@@ -38,17 +38,26 @@ apps/frontend/
     │       ├── login.tsx        # Login form
     │       └── register.tsx     # Register form
     ├── components/
-    │   ├── ui/                  # shadcn/ui components (CLI-generated)
-    │   │   ├── button.tsx
-    │   │   ├── input.tsx
-    │   │   ├── card.tsx
-    │   │   └── sonner.tsx
+    │   ├── ui/                  # shadcn/ui primitives (CLI-generated)
+    │   │   ├── button.tsx, input.tsx, card.tsx, sonner.tsx
+    │   │   ├── label.tsx, separator.tsx, field.tsx
+    │   │   ├── dialog.tsx, sheet.tsx, popover.tsx
+    │   │   ├── dropdown-menu.tsx, select.tsx, tabs.tsx
+    │   │   ├── table.tsx, checkbox.tsx, switch.tsx
+    │   │   ├── textarea.tsx, avatar.tsx, badge.tsx
+    │   │   ├── skeleton.tsx, tooltip.tsx
+    │   │   ├── scroll-area.tsx, alert.tsx
+    │   │   └── ... (add more via `bunx shadcn@latest add <name>`)
+    │   ├── block/               # Page-level blocks (shadcn blocks + business logic)
+    │   │   ├── login-form.tsx   # Login card with signIn integration
+    │   │   └── signup-form.tsx  # Signup card with signUp integration
     │   ├── biz/                 # Business components
     │   │   └── chat.tsx         # AI chat (oRPC streaming)
     │   └── shared/              # Shared components
     └── lib/
         ├── orpc.ts              # oRPC client + TanStack Query utils
         ├── auth-client.ts       # Better Auth client (throwOnError wrappers)
+        ├── logger.ts            # Pino logger (browser mode)
         └── utils.ts             # cn() helper (clsx + tailwind-merge)
 ```
 
@@ -159,9 +168,62 @@ import { cn } from '@/lib/utils'
 
 Components live in `src/components/ui/`. Style: `radix-nova`, base color: `neutral`.
 
+### Component directory structure
+
+```
+components/
+├── ui/              # shadcn/ui atomic primitives (CLI-generated, don't hand-edit)
+├── block/           # Page-level blocks (visual layout + business logic)
+│   ├── login-form.tsx
+│   └── signup-form.tsx
+├── biz/             # Business-specific components (chat, etc.)
+└── shared/          # Shared reusable components
+```
+
+**ui/** — Atomic primitives from shadcn CLI. Never hand-edit these.
+**block/** — Larger compositions based on shadcn blocks. These contain both UI and business logic (auth calls, API calls) since the forms are simple enough that splitting props/logic adds no value. Pages import blocks directly.
+**biz/** — Domain-specific components that don't fit the block pattern (e.g., streaming chat).
+
 ### Installed components
 
-**Button** — CVA-based with variants and sizes:
+**Primitives (ui/):**
+
+| Component | Purpose |
+|-----------|---------|
+| `button` | CVA-based with variants (default, outline, secondary, ghost, destructive, link) and sizes |
+| `input` | Form input with aria-invalid states |
+| `textarea` | Multi-line text input |
+| `card` | Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, CardAction |
+| `label` | Form label |
+| `field` | Form field layout: Field, FieldGroup, FieldLabel, FieldDescription, FieldError |
+| `checkbox` | Checkbox input |
+| `switch` | Toggle switch |
+| `select` | Dropdown select |
+| `dialog` | Modal dialog |
+| `sheet` | Side panel overlay |
+| `popover` | Popover/floating panel |
+| `dropdown-menu` | Context/dropdown menu |
+| `tabs` | Tab navigation |
+| `table` | Data table |
+| `avatar` | User avatar |
+| `badge` | Status badge/tag |
+| `skeleton` | Loading placeholder |
+| `tooltip` | Hover tooltip (requires `TooltipProvider` — already in root layout) |
+| `scroll-area` | Custom scrollbar area |
+| `alert` | Alert/warning banner |
+| `separator` | Visual divider |
+| `sonner` | Toast notifications |
+
+**Blocks (block/):**
+
+| Block | Based on | Purpose |
+|-------|---------|---------|
+| `login-form` | shadcn `login-01` | Login card with `signIn.email()` + error/loading + `onSuccess` callback |
+| `signup-form` | shadcn `signup-01` | Signup card with `signUp.email()` + error/loading + `onSuccess` callback |
+
+### Usage examples
+
+**Button:**
 
 ```tsx
 import { Button } from '@/components/ui/button'
@@ -217,6 +279,22 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, 
 <Card size="sm">{/* compact variant */}</Card>
 ```
 
+**Field (form layout):**
+
+```tsx
+import { Field, FieldGroup, FieldLabel, FieldDescription, FieldError } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+
+<FieldGroup>
+  <Field>
+    <FieldLabel htmlFor="email">Email</FieldLabel>
+    <Input id="email" type="email" placeholder="m@example.com" />
+    <FieldDescription>We won't share your email.</FieldDescription>
+  </Field>
+  {hasError && <FieldError>Invalid email address</FieldError>}
+</FieldGroup>
+```
+
 **Toasts (Sonner):**
 
 ```tsx
@@ -234,10 +312,41 @@ The `<Toaster />` is already mounted in `src/main.tsx`. Global mutation errors a
 
 ```bash
 cd apps/frontend
+
+# Add ui primitives
 bunx shadcn@latest add dialog table dropdown-menu
+
+# Add page-level blocks (installed to src/components/, move to block/ and adapt)
+bunx shadcn@latest add @shadcn/login-01 @shadcn/sidebar-01
 ```
 
-Config is in `components.json`. Components are generated into `src/components/ui/`.
+Config is in `components.json`. Primitives are generated into `src/components/ui/`. Blocks are generated into `src/components/` — move them to `src/components/block/` and inject business logic as needed.
+
+### Using blocks in pages
+
+Blocks contain their own business logic. Pages are thin wrappers that handle routing:
+
+```tsx
+// pages/auth/login.tsx — thin page
+import { useNavigate } from 'react-router-dom'
+import { LoginForm } from '@/components/block/login-form'
+
+export function LoginPage() {
+  const navigate = useNavigate()
+  return (
+    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
+      <div className="w-full max-w-sm">
+        <LoginForm onSuccess={() => navigate('/')} />
+      </div>
+    </div>
+  )
+}
+```
+
+**When to create a block vs keep logic in page:**
+- Form is simple with fixed params (login, register) → block with business logic baked in
+- Page has complex data fetching + multiple visual sections → split into blocks with callback props
+- Component is domain-specific and not page-level → use `biz/` directory
 
 ## oRPC Client
 
@@ -394,6 +503,48 @@ export function ProtectedPage() {
   return <div>Protected content for {session.user.name}</div>
 }
 ```
+
+## Logging (Pino)
+
+### Setup (`src/lib/logger.ts`)
+
+```ts
+import { logger } from '@/lib/logger'
+```
+
+- **Dev:** `debug` level, structured objects in browser console
+- **Production:** `warn` level only (no noise in prod console)
+- Uses Pino's `browser` mode — no Node.js APIs
+
+### Usage in Components/Hooks
+
+```ts
+import { logger } from '@/lib/logger'
+
+// In a hook or event handler
+logger.error({ err: error.message }, 'upload failed')
+logger.info({ fileKey }, 'file uploaded')
+logger.debug({ queryKey }, 'cache miss')
+```
+
+### Integration with TanStack Query
+
+The global `mutations.onError` in `main.tsx` automatically logs all mutation errors:
+
+```ts
+mutations: {
+  onError(error) {
+    logger.error({ err: error.message }, 'mutation error')
+    toast.error(error.message ?? 'Something went wrong')
+  },
+}
+```
+
+### Conventions
+
+- Same structured format as backend: `logger.level({ data }, 'message')`
+- Use `error` for caught exceptions, `warn` for expected issues, `info` for key events, `debug` for troubleshooting
+- Never log tokens, passwords, or PII
 
 ## Error Handling
 

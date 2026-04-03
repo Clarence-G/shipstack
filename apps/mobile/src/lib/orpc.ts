@@ -1,9 +1,9 @@
+import type { contract } from '@myapp/contract'
 import { createORPCClient } from '@orpc/client'
 import { RPCLink } from '@orpc/client/fetch'
+import type { ContractRouterClient } from '@orpc/contract'
 import { createTanstackQueryUtils } from '@orpc/tanstack-query'
 import { Platform } from 'react-native'
-import type { ContractRouterClient } from '@orpc/contract'
-import type { contract } from '@myapp/contract'
 
 import { getCookie } from './auth-client'
 

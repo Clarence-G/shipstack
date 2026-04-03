@@ -1,4 +1,4 @@
-import { pgTable, text, boolean, timestamp } from 'drizzle-orm/pg-core'
+import { boolean, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
 // ─── Better Auth Required Tables ─────────────────────────────────────────────
 
@@ -64,5 +64,20 @@ export const chatMessage = pgTable('chat_message', {
     .references(() => user.id),
   role: text('role').notNull(),
   content: text('content').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+
+export const file = pgTable('file', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id),
+  fileKey: text('file_key').notNull().unique(),
+  filename: text('filename').notNull(),
+  contentType: text('content_type').notNull(),
+  size: text('size'), // Populated after upload confirmation
+  status: text('status').notNull().default('pending'), // pending | confirmed
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })

@@ -1,5 +1,5 @@
-import { implement, ORPCError, os as baseOs } from '@orpc/server'
 import { contract } from '@myapp/contract'
+import { os as baseOs, implement, ORPCError } from '@orpc/server'
 import { auth } from './lib/auth'
 
 /**

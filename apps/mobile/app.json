@@ -8,8 +8,6 @@
     "web": {
       "output": "static"
     },
-    "plugins": [
-      "expo-secure-store"
-    ]
+    "plugins": ["expo-secure-store"]
   }
 }

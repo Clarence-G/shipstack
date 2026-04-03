@@ -1,6 +1,6 @@
 # oRPC Full-Stack Template
 
-A monorepo scaffold for building **type-safe full-stack applications** with oRPC contract-first development. Designed as a starting point for AI-assisted project generation and rapid prototyping.
+A monorepo scaffold for building **type-safe full-stack applications** with oRPC contract-first development. Includes Web (React), Mobile (Expo), and Backend (Hono) — all sharing a single API contract.
 
 ## Tech Stack
 
@@ -9,11 +9,17 @@ A monorepo scaffold for building **type-safe full-stack applications** with oRPC
 | Monorepo | Bun workspaces |
 | Contract | oRPC + Zod (contract-first, shared types) |
 | Backend | Hono + oRPC server + Bun runtime |
-| Auth | Better Auth (email/password, session cookies) |
+| Auth | Better Auth (email/password, session cookies, Expo plugin) |
 | Database | Drizzle ORM + PostgreSQL |
 | AI | AI SDK with OpenAI-compatible providers |
+| Storage | S3 presigned URLs (MinIO for dev, AWS S3/R2/OSS for prod) |
 | Frontend | React 19 + Vite + Tailwind CSS v4 + shadcn/ui |
+| Mobile | Expo + React Native + Uniwind (Tailwind v4) + RN Reusables |
 | Data Fetching | oRPC client + TanStack Query |
+| Logging | Pino (structured JSON in prod, pretty-print in dev) |
+| Linting | Biome (lint + format + import sorting) |
+| API Docs | OpenAPI spec + Scalar UI |
+| Git Hooks | Lefthook (pre-commit Biome check) |
 
 ## Project Structure
 
@@ -23,31 +29,38 @@ A monorepo scaffold for building **type-safe full-stack applications** with oRPC
 │       └── src/
 │           ├── auth.contract.ts
 │           ├── ai.contract.ts
+│           ├── storage.contract.ts
 │           └── index.ts
 ├── apps/
-│   ├── backend/             # Hono server (port 3001)
+│   ├── backend/             # Hono server (port 4001)
 │   │   └── src/
-│   │       ├── index.ts     # Entry: CORS, Better Auth, oRPC handler
+│   │       ├── index.ts     # Entry: CORS, auth, oRPC, OpenAPI, Scalar UI
 │   │       ├── orpc.ts      # implement(contract) + auth middleware
-│   │       ├── routers/     # Route handlers (auth, ai)
-│   │       ├── db/          # Drizzle schema + connection
-│   │       └── lib/         # Auth config, AI model setup
+│   │       ├── routers/     # Route handlers (auth, ai, storage)
+│   │       ├── db/          # Drizzle schema + migrations + seed
+│   │       └── lib/         # auth, ai, s3, logger, env, openapi
 │   ├── frontend/            # React SPA (port 5173)
 │   │   └── src/
-│   │       ├── lib/         # oRPC client, auth client, utils
-│   │       ├── pages/       # Route pages (home, login, register)
-│   │       ├── layouts/     # Root layout with nav
+│   │       ├── lib/         # oRPC client, auth client, logger, utils
+│   │       ├── pages/       # Route pages (home, login, register, 404)
+│   │       ├── layouts/     # Root layout with nav + dark mode toggle
 │   │       └── components/
-│   │           ├── ui/      # shadcn/ui components
+│   │           ├── ui/      # shadcn/ui components (20+)
+│   │           ├── block/   # Page-level blocks (login-form, signup-form)
 │   │           ├── biz/     # Business components (chat)
-│   │           └── shared/  # Shared components
-│   └── mobile/              # React Native app (Expo, port 8081)
+│   │           └── shared/  # ErrorBoundary, ThemeProvider, ThemeToggle
+│   └── mobile/              # React Native app (Expo)
 │       └── src/
-│           ├── app/          # Expo Router file routes
-│           ├── lib/          # oRPC client, auth client
-│           └── global.css    # Tailwind + Uniwind entry
+│           ├── app/         # Expo Router file routes
+│           ├── lib/         # oRPC client, auth client
+│           ├── components/
+│           │   ├── ui/      # RN Reusables components (30+)
+│           │   └── block/   # Block components (sign-in, sign-up, user-menu)
+│           └── global.css   # Tailwind + Uniwind entry
+├── biome.json               # Biome linter/formatter config
+├── lefthook.yml             # Git hooks (pre-commit lint)
+├── docker-compose.yml       # MinIO for local S3
 ├── package.json             # Workspace scripts
-├── tsconfig.base.json       # Shared TypeScript config
 └── .env.example             # Environment variables template
 ```
 
@@ -69,11 +82,12 @@ The contract package defines every API procedure's input/output using Zod. Both 
 
 - [Bun](https://bun.sh) (v1.1+)
 - PostgreSQL database
+- Docker (optional, for MinIO S3)
 
 ### Setup
 
 ```bash
-# 1. Install dependencies
+# 1. Install dependencies (also installs git hooks via lefthook)
 bun install
 
 # 2. Configure environment
@@ -91,13 +105,19 @@ bun run db:migrate
 bun run db:seed
 # → test@example.com / password123
 
-# 6. Start development
+# 6. Start MinIO for file storage (optional)
+docker compose up -d
+# Create "uploads" bucket at http://localhost:9001 (minioadmin/minioadmin)
+
+# 7. Start development
 bun run dev
 ```
 
 This starts:
-- Backend at `http://localhost:3001`
-- Frontend at `http://localhost:5173` (strict port — errors if occupied, proxies `/api` and `/rpc` to backend)
+- Backend at `http://localhost:4001`
+- Frontend at `http://localhost:5173` (proxies `/api` and `/rpc` to backend)
+- API docs at `http://localhost:4001/docs` (Scalar UI)
+- OpenAPI spec at `http://localhost:4001/openapi.json`
 
 ### All Commands
 
@@ -111,6 +131,62 @@ This starts:
 | `bun run db:generate` | Generate Drizzle migration files |
 | `bun run db:migrate` | Apply database migrations |
 | `bun run db:seed` | Insert test user (test@example.com / password123) |
+| `bun run lint` | Check lint + format with Biome |
+| `bun run lint:fix` | Auto-fix lint + format issues |
+| `bun run format` | Format all files |
+
+## Features
+
+### Env Validation
+
+Backend validates all environment variables at startup with Zod. Missing or invalid vars produce clear error messages and exit immediately — no cryptic runtime crashes.
+
+```ts
+import { env } from './lib/env'
+// env.DATABASE_URL, env.PORT, etc. — fully typed, validated at boot
+```
+
+### Structured Logging (Pino)
+
+- **Backend**: Pretty-printed in dev, JSON in prod. HTTP request middleware auto-logs method/path/status/ms. Control level via `LOG_LEVEL` env var.
+- **Frontend**: Pino browser mode. Integrated with TanStack Query mutation error handler.
+
+```ts
+import { logger } from './lib/logger'
+logger.info({ userId }, 'user logged in')
+logger.error({ err }, 'upload failed')
+```
+
+### Dark Mode
+
+Built-in ThemeProvider (shadcn Vite pattern) with Sun/Moon toggle in the header. Supports `light`, `dark`, and `system` modes. Persisted to localStorage.
+
+### Error Handling
+
+- **Error Boundary** wraps the entire app — catches render errors with a friendly fallback UI
+- **404 page** via catch-all route
+- **Global toast** for unhandled mutation errors (Sonner)
+- **oRPC errors** use `ORPCError` with standard codes (`NOT_FOUND`, `UNAUTHORIZED`, etc.)
+
+### File Storage (S3 Presigned URLs)
+
+```
+Client → requestUploadUrl → Backend (signs URL) → Client
+Client → PUT file → S3 (direct upload)
+Client → confirmUpload → Backend (verifies + saves metadata)
+```
+
+Works with MinIO (dev), AWS S3, Cloudflare R2, or Aliyun OSS. Pre-built `useUpload` hooks for both Web and Mobile.
+
+### OpenAPI Docs
+
+Auto-generated from the oRPC contract. Visit `http://localhost:4001/docs` for interactive Scalar API reference.
+
+### Code Quality
+
+- **Biome** — lint, format, import sorting in a single tool
+- **Lefthook** — pre-commit hook runs Biome on staged files
+- **Git hooks auto-install** via `prepare` script on `bun install`
 
 ## Architecture Decisions
 
@@ -118,338 +194,79 @@ This starts:
 
 All API types live in `packages/contract`. The backend **implements** the contract, the frontend **consumes** it. Neither imports from the other.
 
-> **Testing oRPC endpoints with curl:** The `/rpc` handler expects input wrapped in `{"json": {...}}`, not plain `{"input": {...}}`.
-> ```bash
-> # Without session (returns UNAUTHORIZED for protected routes)
-> curl -X POST http://localhost:3001/rpc/todo/list \
->   -H "Content-Type: application/json" \
->   -d '{"json": {}}'
->
-> # With auth cookie
-> curl -X POST http://localhost:3001/rpc/todo/list \
->   -H "Content-Type: application/json" \
->   -b "session_token=<token>" \
->   -d '{"json": {}}'
-> ```
-
 ### Authentication Split
 
-- **Better Auth** handles login/register/logout via its own HTTP endpoints (`/api/auth/*`) and client SDK (`signIn.email()`, `signUp.email()`, `signOut()`).
-- **oRPC** only exposes `auth.me` for fetching the current user in a type-safe way.
-- Auth middleware bridges Better Auth sessions into oRPC context for protected procedures.
+- **Better Auth** handles login/register/logout via its own HTTP endpoints (`/api/auth/*`)
+- **oRPC** only exposes `auth.me` for fetching the current user
+- Auth middleware bridges Better Auth sessions into oRPC context for protected procedures
 
 ### AI Integration
 
-The backend uses AI SDK with a configurable OpenAI-compatible provider. Set `AI_API_KEY`, `AI_BASE_URL`, and `AI_MODEL` in `.env` to point to OpenAI, DeepSeek, Ollama, or any compatible endpoint. The `ai.chat` procedure streams responses via oRPC's EventIterator, consumed on the frontend with `useChat` from `@ai-sdk/react`.
+Uses AI SDK with a configurable OpenAI-compatible provider. Set `AI_API_KEY`, `AI_BASE_URL`, and `AI_MODEL` in `.env`. The `ai.chat` procedure streams responses via oRPC's EventIterator, consumed on the frontend with `useChat` from `@ai-sdk/react`.
 
 ### Frontend oRPC Usage
 
-The frontend client lives in `src/lib/orpc.ts` and exposes two objects:
-
 ```ts
 import { client, orpc } from '@/lib/orpc'
-```
 
-**`client` — direct async call, use anywhere:**
-```ts
-// One-shot fetch (no caching)
+// Direct call (outside React)
 const user = await client.auth.me({})
-```
 
-**`orpc` — TanStack Query integration, use inside React components:**
-```ts
-import { useQuery, useMutation } from '@tanstack/react-query'
-import { orpc } from '@/lib/orpc'
-
-// Query (GET-style, with caching + refetch)
-const { data, isPending } = useQuery(orpc.auth.me.queryOptions({ input: {} }))
-
-// Mutation (POST-style, triggers on user action)
+// TanStack Query (inside React)
+const { data } = useQuery(orpc.auth.me.queryOptions({ input: {} }))
 const { mutate } = useMutation(orpc.todo.create.mutationOptions())
-mutate({ title: 'Buy milk' })
 ```
 
-**When to use which:**
+### Mobile (Expo + RN Reusables)
 
-| Scenario | Use |
-|----------|-----|
-| Component needs data + loading state | `useQuery(orpc.xxx.queryOptions(...))` |
-| User action triggers a write | `useMutation(orpc.xxx.mutationOptions())` |
-| Outside React (loaders, utils) | `await client.xxx({})` |
-
-**Protected queries** — gate on session to avoid UNAUTHORIZED errors being cached:
-```ts
-const { data: session } = useSession()
-const { data } = useQuery({
-  ...orpc.todo.list.queryOptions({ input: {} }),
-  enabled: !!session,  // only fetch when logged in
-})
-```
-
-**Cache invalidation & direct updates** — `.key()` and `.queryKey()` serve different purposes:
-
-```ts
-const queryClient = useQueryClient()
-
-// .key() = partial match — use for invalidateQueries (bulk invalidation)
-queryClient.invalidateQueries({ queryKey: orpc.todo.key() })           // all todo queries
-queryClient.invalidateQueries({ queryKey: orpc.todo.list.key() })      // all todo.list queries
-
-// .queryKey() = exact match — use for setQueryData (direct cache update)
-queryClient.setQueryData(
-  orpc.todo.find.queryKey({ input: { id: '123' } }),
-  updatedTodo,
-)
-```
-
-| Operation | Use | Why |
-|-----------|-----|-----|
-| `invalidateQueries` | `.key()` | Partial match — invalidates all variants of a query |
-| `setQueryData` / `getQueryData` | `.queryKey()` | Exact match — must hit the precise cache entry |
-| `resetQueries` / `removeQueries` | `.key()` | Partial match — bulk operations |
-
-### TanStack Query + oRPC Pitfalls
-
-#### Mutations don't auto-invalidate queries
-
-After a successful mutation, related queries are NOT refetched. You must invalidate manually:
-
-```ts
-const mutation = useMutation(orpc.todo.create.mutationOptions({
-  onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: orpc.todo.key() })
-  },
-}))
-```
-
-Put invalidation in the **hook-level** `onSuccess`, not in `mutate()` callback — the latter won't fire if the component unmounts before the mutation completes.
-
-#### `skipToken` vs `enabled` — don't combine them
-
-oRPC exposes `skipToken` to conditionally disable a query when input isn't ready. It internally sets `enabled: false`. Combining both causes errors:
-
-```ts
-// ✅ Correct — use skipToken alone
-useQuery(orpc.user.find.queryOptions({
-  input: userId ? { id: userId } : skipToken,
-}))
-
-// ❌ Wrong — skipToken + enabled conflict
-useQuery(orpc.user.find.queryOptions({
-  input: userId ? { id: userId } : skipToken,
-  enabled: !!userId,  // conflicts with skipToken
-}))
-```
-
-#### Client context is excluded from query keys
-
-oRPC does NOT include the `context` parameter in generated query keys. Two queries with the same input but different `context` share a cache entry:
-
-```ts
-// These two share the same query key — only one request fires
-orpc.data.queryOptions({ input: { id: 1 }, context: { cache: true } })
-orpc.data.queryOptions({ input: { id: 1 }, context: { cache: false } })
-
-// Fix: manually override queryKey if context affects the response
-```
-
-#### Type-safe error handling requires `isDefinedError`
-
-oRPC errors are typed broadly as `Error`. To access `.code` and `.data` from contract-defined errors, narrow with `isDefinedError`:
-
-```ts
-import { isDefinedError } from '@orpc/client'
-
-onError: (error) => {
-  if (isDefinedError(error)) {
-    // error.code and error.data are now fully typed
-  }
-}
-```
-
-#### Global `onError` toast may duplicate with local handlers
-
-The scaffold sets a global `mutations.onError` toast. If you also add `onError` on a specific mutation, **both fire**. Handle known errors locally and let unknown errors fall through to the global toast.
-
-#### Don't copy query data into `useState`
-
-```ts
-// ❌ Copies once, never updates from background refetches
-const { data } = useQuery(orpc.user.me.queryOptions({}))
-const [user, setUser] = useState(data)
-
-// ✅ Use data directly from the query
-const { data: user } = useQuery(orpc.user.me.queryOptions({}))
-```
-
-#### `staleTime` and `refetchOnWindowFocus`
-
-The scaffold sets `staleTime: 60s` globally. During that window, switching browser tabs won't trigger refetches. After 60s, `refetchOnWindowFocus` (enabled by default) fires on every tab switch. Override per-query if needed:
-
-```ts
-// Near-realtime data
-useQuery(orpc.messages.queryOptions({ staleTime: 0 }))
-
-// Rarely changes
-useQuery(orpc.settings.queryOptions({ staleTime: 5 * 60 * 1000 }))
-```
-
-### Error Handling
-
-All errors are unified to `try/catch` — both oRPC and Better Auth throw on failure:
-
-- **Better Auth** (`signIn.email`, `signUp.email`, `signOut`): wrapped in `throwOnError` in `src/lib/auth-client.ts`, converting `{ data, error }` returns into thrown `Error`
-- **oRPC**: throws `ORPCError` natively
-- **Global fallback**: `QueryClient` `mutations.onError` displays a toast via [sonner](https://sonner.emilkowal.dev/) for any unhandled mutation error
-
-```ts
-// Both use the same pattern in page code:
-try {
-  await signIn.email({ email, password })   // Better Auth — throws on failure
-  await client.todo.create({ title })       // oRPC — throws on failure
-} catch (err) {
-  // handle error
-}
-```
-
-### shadcn/ui
-
-The frontend uses [shadcn/ui](https://ui.shadcn.com) for UI components. Config is in `apps/frontend/components.json`.
-
-**Pre-installed components** (`src/components/ui/`):
-- `button` — Button with variants (default, outline, secondary, ghost, destructive, link)
-- `input` — Form input with aria-invalid states
-- `card` — Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter
-- `sonner` — Toast notifications (used by global error handler)
-
-**Adding more components:**
-```bash
-cd apps/frontend
-bunx shadcn@latest add dialog table dropdown-menu
-```
-
-**Using in page code:**
-```ts
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-```
-
-**Showing toasts manually:**
-```ts
-import { toast } from 'sonner'
-
-toast.success('Saved!')
-toast.error('Something went wrong')
-toast.info('FYI...')
-```
-
-**Button as link — use `asChild`:**
-```tsx
-import { Link } from 'react-router-dom'
-import { Button } from '@/components/ui/button'
-
-<Button asChild variant="outline">
-  <Link to="/products">Browse Products</Link>
-</Button>
-```
-
-`asChild` merges Button's styles onto the child element (via Radix Slot). Use it whenever you need a `<Link>`, `<a>`, or other element to look like a button.
-
-### No Build Step in Development
-
-- **Backend**: Bun runs TypeScript directly (`bun run --hot src/index.ts`)
-- **Frontend**: Vite handles TypeScript natively
-- **Type checking**: `tsc --noEmit` reads contract source via path aliases — no `composite` or project references needed
+The mobile app mirrors the frontend's component structure using [RN Reusables](https://rnr-docs.vercel.app/) — a React Native port of shadcn/ui. Key differences from Web are documented in `docs/mobile.md`.
 
 ## Environment Variables
 
 Copy `.env.example` to `apps/backend/.env` and configure:
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `BETTER_AUTH_SECRET` | Yes | Session encryption secret |
-| `BETTER_AUTH_URL` | Yes | Backend URL (e.g. `http://localhost:3001`) |
-| `FRONTEND_URL` | No | Frontend URL for CORS (default: `http://localhost:5173`) |
-| `AI_API_KEY` | For AI | API key for OpenAI-compatible provider |
-| `AI_BASE_URL` | For AI | Provider base URL (default: OpenAI) |
-| `AI_MODEL` | No | Model identifier (default: `gpt-4o-mini`) |
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DATABASE_URL` | Yes | — | PostgreSQL connection string |
+| `BETTER_AUTH_SECRET` | Yes | — | Session encryption secret |
+| `BETTER_AUTH_URL` | Yes | — | Backend URL (e.g. `http://localhost:4001`) |
+| `PORT` | No | `4001` | Server port |
+| `LOG_LEVEL` | No | `info` | Pino log level (debug/info/warn/error) |
+| `FRONTEND_URL` | No | `http://localhost:4000` | Frontend origin (CORS) |
+| `AI_API_KEY` | For AI | — | API key for OpenAI-compatible provider |
+| `AI_BASE_URL` | For AI | — | Provider base URL |
+| `AI_MODEL` | No | `gpt-4o-mini` | Model identifier |
+| `S3_ENDPOINT` | No | `http://localhost:9000` | S3-compatible endpoint |
+| `S3_ACCESS_KEY` | No | `minioadmin` | S3 access key |
+| `S3_SECRET_KEY` | No | `minioadmin` | S3 secret key |
+| `S3_BUCKET` | No | `uploads` | S3 bucket name |
 
 ## Extending the Scaffold
 
 ### Adding a New API Procedure
 
-1. **Define contract** in `packages/contract/src/`:
-   ```ts
-   // packages/contract/src/todo.contract.ts
-   import { oc } from '@orpc/contract'
-   import { z } from 'zod'
+1. **Define contract** in `packages/contract/src/`
+2. **Add to root contract** in `packages/contract/src/index.ts`
+3. **Implement handler** in `apps/backend/src/routers/`
+4. **Register router** in `apps/backend/src/routers/index.ts`
+5. **Use on frontend** — the client is automatically typed
 
-   export const todoContract = {
-     list: oc.input(z.object({})).output(z.array(TodoSchema)),
-     create: oc.input(CreateTodoSchema).output(TodoSchema),
-   }
-   ```
-
-2. **Add to root contract** in `packages/contract/src/index.ts`:
-   ```ts
-   export const contract = {
-     auth: authContract,
-     ai: aiContract,
-     todo: todoContract,  // add here
-   }
-   ```
-
-3. **Implement handler** in `apps/backend/src/routers/`:
-   ```ts
-   // apps/backend/src/routers/todo.router.ts
-   import { os, authMiddleware } from '../orpc'
-
-   export const todoRouter = {
-     list: os.todo.list.use(authMiddleware).handler(async ({ context }) => {
-       // implementation
-     }),
-   }
-   ```
-
-4. **Register router** in `apps/backend/src/routers/index.ts`:
-   ```ts
-   export const router = os.router({
-     auth: authRouter,
-     ai: aiRouter,
-     todo: todoRouter,  // add here
-   })
-   ```
-
-5. **Use on frontend** — the client is automatically typed:
-   ```ts
-   // Anywhere in frontend
-   const todos = await client.todo.list({})
-   // Or with TanStack Query
-   const { data } = useQuery(orpc.todo.list.queryOptions({ input: {} }))
-   ```
+See `docs/backend.md` for detailed examples.
 
 ### Adding Database Tables
 
-Define tables in `apps/backend/src/db/schema.ts` using Drizzle's `pgTable`, then run:
 ```bash
-bun run db:generate   # generates migration SQL
-bun run db:migrate    # applies to database
+# 1. Define table in apps/backend/src/db/schema.ts
+# 2. Generate and apply migration
+bun run db:generate
+bun run db:migrate
 ```
 
-**Drizzle query tips:**
+## Documentation
 
-`where()` accepts a single condition. Use `and()` / `or()` from `drizzle-orm` to combine multiple conditions:
+Detailed guides for coding agents and developers:
 
-```ts
-import { eq, and, or } from 'drizzle-orm'
-
-// Multiple conditions — wrap in and()
-db.select().from(products)
-  .where(and(eq(products.categoryId, catId), eq(products.active, true)))
-
-// OR conditions
-db.select().from(products)
-  .where(or(eq(products.status, 'sale'), eq(products.featured, true)))
-```
+- `docs/backend.md` — Backend patterns, DB queries, auth, streaming, logging, storage
+- `docs/frontend.md` — Frontend patterns, oRPC client, components, styling, error handling
+- `docs/mobile.md` — Mobile setup, RN Reusables vs shadcn differences, Uniwind
+- `docs/orpc.md` — oRPC usage reference

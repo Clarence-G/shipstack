@@ -35,15 +35,19 @@ apps/mobile/
     │       ├── login.tsx        # Login screen
     │       └── register.tsx     # Register screen
     ├── components/
-    │   ├── ui/                  # RN Reusables components (CLI-generated)
-    │   │   ├── button.tsx
-    │   │   ├── card.tsx
-    │   │   ├── input.tsx
-    │   │   ├── label.tsx
-    │   │   ├── separator.tsx
-    │   │   └── text.tsx
-    │   ├── sign-in-form.tsx     # Auth form (uses ui/ components)
-    │   └── sign-up-form.tsx
+    │   ├── ui/                  # RN Reusables components (CLI-generated, 32 files)
+    │   │   ├── accordion, alert, alert-dialog, aspect-ratio
+    │   │   ├── avatar, badge, button, card, checkbox, collapsible
+    │   │   ├── context-menu, dialog, dropdown-menu, hover-card
+    │   │   ├── icon, input, label, menubar
+    │   │   ├── native-only-animated-view, popover, progress
+    │   │   ├── radio-group, select, separator, skeleton
+    │   │   ├── switch, tabs, text, textarea
+    │   │   └── toggle, toggle-group, tooltip
+    │   └── block/               # Block-level composed components
+    │       ├── sign-in-form.tsx  # Login form (Card + Input + Button)
+    │       ├── sign-up-form.tsx  # Register form (Card + Input + Button)
+    │       └── user-menu.tsx     # User avatar popover menu (RN Reusables CLI)
     └── lib/
         ├── orpc.ts              # oRPC client + TanStack Query utils
         ├── auth-client.ts       # Better Auth client (Expo SecureStore)
@@ -253,7 +257,7 @@ npx @react-native-reusables/cli@latest add dialog dropdown-menu avatar --yes
 
 The CLI auto-detects Uniwind, downloads component source to `src/components/ui/`, and installs required `@rn-primitives/*` packages.
 
-Available components (35+): accordion, alert, alert-dialog, aspect-ratio, avatar, badge, button, card, checkbox, collapsible, context-menu, dialog, dropdown-menu, hover-card, input, label, menubar, popover, progress, radio-group, select, separator, skeleton, switch, tabs, text, textarea, toggle, toggle-group, tooltip.
+Available components (32 files): accordion, alert, alert-dialog, aspect-ratio, avatar, badge, button, card, checkbox, collapsible, context-menu, dialog, dropdown-menu, hover-card, icon, input, label, menubar, native-only-animated-view, popover, progress, radio-group, select, separator, skeleton, switch, tabs, text, textarea, toggle, toggle-group, tooltip.
 
 **IMPORTANT:** After adding components that use overlays (dialog, dropdown-menu, popover, tooltip), ensure `<PortalHost />` is in the root layout (it already is).
 
@@ -539,3 +543,104 @@ Access: `process.env.EXPO_PUBLIC_API_URL`
 | Hover states | `hover:` | `active:` (no hover on touch) |
 | Text inheritance | CSS cascade | Must style each `Text` directly |
 | Scroll container | Native scroll | `ScrollView` / `FlatList` with `contentContainerClassName` |
+
+## RN Reusables vs shadcn/ui — Key Differences for AI
+
+RN Reusables mirrors shadcn/ui naming and compound component patterns, but has RN-specific behaviors. **Do not blindly copy shadcn/ui web patterns — apply these rules.**
+
+### 1. TextClassContext (no CSS inheritance)
+
+Web CSS inherits `color` from parents. React Native does not. RN Reusables uses `TextClassContext` (React Context) to pass text styles from parent to child `Text` components.
+
+**Rule:** Always use `Text` from `@/components/ui/text` (not `react-native`) inside RN Reusables components like `Button`, `Card`, `DropdownMenuItem`. The ui `Text` reads `TextClassContext` for automatic styling.
+
+```tsx
+// CORRECT
+import { Text } from '@/components/ui/text'
+<Button><Text>Save</Text></Button>
+
+// WRONG — RN Text ignores TextClassContext, won't get button text color
+import { Text } from 'react-native'
+<Button><Text>Save</Text></Button>
+```
+
+### 2. portalHost (overlay components)
+
+Overlay components (Dialog, Select, Tooltip, Popover, DropdownMenu, ContextMenu, AlertDialog, HoverCard) render via `@rn-primitives/portal`. The root `<PortalHost />` in `_layout.tsx` is the default mount point.
+
+**Rule:** Normally no action needed. If opening an overlay **inside a Modal or BottomSheet**, pass `portalHost` to avoid z-index issues:
+
+```tsx
+<SelectContent portalHost="modal-portal">
+<DialogContent portalHost="sheet-portal">
+```
+
+### 3. Animations (Reanimated, not CSS)
+
+Web uses CSS `@keyframes`. RN Reusables uses `react-native-reanimated` (`FadeIn`, `FadeOut`, `SlideInDown`, etc.) wrapped in `NativeOnlyAnimatedView`.
+
+**Rule:** Already handled inside components. No action needed. But ensure `react-native-reanimated` stays installed.
+
+### 4. hitSlop (touch target sizing)
+
+Mobile touch targets must be larger than visual size. Components like `Checkbox`, `DialogClose`, `Switch` set `hitSlop` internally.
+
+**Rule:** Already handled. When building custom touchable components, add `hitSlop={12}` or more on small targets.
+
+### 5. FullWindowOverlay (iOS z-index)
+
+iOS React Native Modals create separate native windows. `zIndex` cannot cross window boundaries. RN Reusables uses `FullWindowOverlay` from `react-native-screens` on iOS for overlays inside modals.
+
+**Rule:** Already handled inside components. Ensure `react-native-screens` stays installed.
+
+### 6. `active:` instead of `hover:`
+
+No hover on touch devices. Use `active:` (Pressable press state) for interaction feedback.
+
+```tsx
+// Web
+<Button className="hover:bg-primary/90">
+
+// Mobile
+<Pressable className="active:bg-primary/90 active:opacity-80">
+```
+
+**Components with state support:** `Pressable` (`active:`, `disabled:`, `focus:`), `TextInput` (`focus:`, `disabled:`), `Switch` (`disabled:`), `TouchableOpacity/Highlight` (`active:`, `disabled:`).
+
+### 7. Extra className props (no CSS child selectors)
+
+Web CSS can target children (`button > svg { color: white }`). RN cannot. Some components expose additional `xxxClassName` props for sub-element styling:
+
+| Component | Extra className props |
+|-----------|---------------------|
+| Checkbox | `checkedClassName`, `indicatorClassName`, `iconClassName` |
+| DropdownMenu | `overlayClassName`, `overlayStyle` |
+| Select | (portalHost only) |
+| SubTrigger | `iconClassName` |
+
+**Rule:** Check the component source in `src/components/ui/` for available props when you need fine-grained styling.
+
+### 8. Platform-conditional rendering
+
+Some components render differently on web vs native:
+
+```tsx
+// SelectScrollUpButton/DownButton — return null on native
+// FullWindowOverlay — iOS only
+// NativeOnlyAnimatedView — renders Animated.View on native, plain View on web
+```
+
+**Rule:** Use `Platform.OS` checks when building platform-specific UI. Prefer Uniwind platform selectors (`ios:pt-12 android:pt-6`) over `Platform.select()` for styling.
+
+### 9. Component mapping cheat sheet
+
+| shadcn/ui (Web) | RN Reusables (Mobile) | Notes |
+|-----------------|----------------------|-------|
+| `<button>` | `<Pressable>` | Use `<Button>` component for styled version |
+| `<div>` | `<View>` | |
+| `<span>` / `<p>` | `<Text>` from ui/text | Must use ui Text inside Reusables components |
+| `<input>` | `<TextInput>` | Use `<Input>` component for styled version |
+| `asChild` + `<Link>` | Direct `onPress` + `router.push()` | RN Reusables supports `asChild` on some components |
+| `<TooltipProvider>` | Not needed | Mobile has no global tooltip provider |
+| `showCloseButton` (Dialog) | Auto-rendered close button | Mobile Dialog always shows close icon |
+| `variant="line"` (Tabs) | Not available | Mobile Tabs has fixed styling |

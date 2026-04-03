@@ -36,7 +36,9 @@ apps/backend/
     │   └── seed.ts              # Script: seed test user
     └── lib/
         ├── auth.ts              # Better Auth config (drizzle adapter, expo plugin)
-        └── ai.ts                # AI model factory (OpenAI-compatible)
+        ├── ai.ts                # AI model factory (OpenAI-compatible)
+        ├── logger.ts            # Pino logger (pretty dev, JSON prod)
+        └── s3.ts                # S3 client (MinIO/AWS/R2)
 ```
 
 ## How the Server Boots
@@ -267,6 +269,7 @@ Tables are defined with Drizzle's `pgTable`. The schema currently includes:
 
 **Business tables:**
 - `chatMessage` — id, chatId, userId, role, content, createdAt
+- `file` — id, userId, fileKey, filename, contentType, size, status, createdAt
 
 ### Adding a new table
 
@@ -421,6 +424,74 @@ os.ai.chat.use(authMiddleware).handler(async ({ input }) => {
 
 The contract for streaming procedures omits `.output()` — the EventIterator type is inferred.
 
+## Logging (Pino)
+
+### Setup (`src/lib/logger.ts`)
+
+```ts
+import { logger } from './lib/logger'
+```
+
+- **Dev:** Pretty-printed colored logs via `pino-pretty`
+- **Production:** Structured JSON (machine-parseable, compatible with Datadog/Loki/CloudWatch)
+- **Level:** Controlled by `LOG_LEVEL` env var (default: `info`)
+
+### HTTP Request Logging
+
+All requests are automatically logged by the Hono middleware in `src/index.ts`:
+
+```
+INFO  request                { method: "POST", path: "/rpc/auth/me", status: 200, ms: 12 }
+WARN  request client error   { method: "POST", path: "/rpc/todo/list", status: 401, ms: 3 }
+ERROR request error          { method: "POST", path: "/rpc/ai/chat", status: 500, ms: 45 }
+```
+
+- `status >= 500` → `logger.error`
+- `status >= 400` → `logger.warn`
+- otherwise → `logger.info`
+
+### oRPC Error Logging
+
+All unhandled errors in oRPC handlers are captured by the global `onError` interceptor and logged as:
+
+```
+ERROR rpc error  { err: { message: "...", stack: "..." } }
+```
+
+### Using the Logger in Handlers
+
+```ts
+import { logger } from '../lib/logger'
+
+export const todoRouter = {
+  create: os.todo.create
+    .use(authMiddleware)
+    .handler(async ({ input, context }) => {
+      logger.info({ userId: context.user.id, title: input.title }, 'creating todo')
+
+      const [created] = await db.insert(todo).values({ ... }).returning()
+
+      logger.info({ todoId: created.id }, 'todo created')
+      return created
+    }),
+}
+```
+
+### Logging Conventions
+
+| Level | When to Use | Example |
+|-------|-------------|---------|
+| `error` | Unexpected failures, caught exceptions | `logger.error({ err }, 's3 upload failed')` |
+| `warn` | Expected but notable issues | `logger.warn({ fileKey }, 'file not found in S3')` |
+| `info` | Key business events, request lifecycle | `logger.info({ userId }, 'user logged in')` |
+| `debug` | Detailed troubleshooting data | `logger.debug({ query }, 'db query')` |
+
+**Rules:**
+1. Always pass structured data as first arg, message as second: `logger.info({ key: value }, 'message')`
+2. Use `{ err }` key for Error objects — Pino serializes stack traces automatically
+3. Never log sensitive data (passwords, tokens, full request bodies)
+4. Use `debug` for data you only need when troubleshooting — it's hidden in production by default
+
 ## Error Handling
 
 ### oRPC errors
@@ -464,12 +535,18 @@ Configured in `apps/backend/.env` (copy from root `.env.example`):
 | `DATABASE_URL` | Yes | — | PostgreSQL connection string |
 | `BETTER_AUTH_SECRET` | Yes | — | Session encryption secret |
 | `BETTER_AUTH_URL` | Yes | — | Backend URL (e.g. `http://localhost:4001`) |
+| `LOG_LEVEL` | No | `info` | Pino log level (`debug`, `info`, `warn`, `error`) |
 | `PORT` | No | `4001` | Server port |
 | `FRONTEND_URL` | No | `http://localhost:5173` | Web client origin (CORS + trusted origins) |
 | `MOBILE_URL` | No | `http://localhost:8082` | Mobile web client origin |
 | `AI_API_KEY` | For AI | — | API key for OpenAI-compatible provider |
 | `AI_BASE_URL` | For AI | — | Provider base URL |
 | `AI_MODEL` | No | `gpt-4o-mini` | Model identifier |
+| `S3_ENDPOINT` | No | `http://localhost:9000` | S3-compatible storage endpoint |
+| `S3_REGION` | No | `us-east-1` | S3 region |
+| `S3_ACCESS_KEY` | No | `minioadmin` | S3 access key |
+| `S3_SECRET_KEY` | No | `minioadmin` | S3 secret key |
+| `S3_BUCKET` | No | `uploads` | S3 bucket name |
 
 ## Testing oRPC Endpoints
 
@@ -502,6 +579,67 @@ curl -X POST http://localhost:4001/rpc/todo/list \
 | Access user | `context.user.id` after `authMiddleware` |
 | Query database | `db.select().from(table).where(eq(...))` |
 | Throw errors | `throw new ORPCError('NOT_FOUND')` |
+| Log events | `logger.info({ key: value }, 'message')` |
 | Stream responses | `streamToEventIterator(result.toUIMessageStream())` |
 | Add table | Define in `schema.ts`, run `db:generate` + `db:migrate` |
 | Auth routes | Handled by Better Auth on `/api/auth/*`, not oRPC |
+
+## File Storage (S3 Presigned URLs)
+
+### Architecture
+
+Client-side uploads using S3 presigned URLs. Backend only generates URLs and tracks metadata.
+
+```
+Client → requestUploadUrl → Backend (signs URL) → Client
+Client → PUT file → S3 (direct upload)
+Client → confirmUpload → Backend (verifies + saves metadata)
+Client → getDownloadUrl → Backend (signs URL) → Client
+```
+
+### Environment Variables
+
+| Variable | Default (dev) | Description |
+|----------|---------------|-------------|
+| `S3_ENDPOINT` | `http://localhost:9000` | S3-compatible endpoint |
+| `S3_REGION` | `us-east-1` | Region |
+| `S3_ACCESS_KEY` | `minioadmin` | Access key |
+| `S3_SECRET_KEY` | `minioadmin` | Secret key |
+| `S3_BUCKET` | `uploads` | Bucket name |
+
+### Local Development
+
+```bash
+docker compose up -d    # Start MinIO
+# Console: http://localhost:9001 (minioadmin/minioadmin)
+# Create bucket "uploads" via console on first run
+```
+
+### Contract Procedures
+
+| Procedure | Input | Output |
+|-----------|-------|--------|
+| `storage.requestUploadUrl` | `{ filename, contentType }` | `{ uploadUrl, fileKey }` |
+| `storage.confirmUpload` | `{ fileKey }` | `FileSchema` (id, fileKey, filename, contentType, url, createdAt) |
+| `storage.getDownloadUrl` | `{ fileKey }` | `{ downloadUrl }` |
+
+### Client Usage
+
+```tsx
+// Web (apps/frontend)
+import { useUpload } from '@/hooks/use-upload'
+const { upload, isUploading, progress } = useUpload()
+const result = await upload(file) // File object from <input type="file">
+
+// Mobile (apps/mobile)
+import { useUpload } from '@/hooks/use-upload'
+const { upload, isUploading, progress } = useUpload()
+const result = await upload(imagePickerAsset) // { uri, fileName, mimeType }
+```
+
+### Production Config
+
+Replace env vars to point at any S3-compatible service:
+- **AWS S3**: Omit `S3_ENDPOINT` (uses AWS default), set `S3_REGION`/`S3_ACCESS_KEY`/`S3_SECRET_KEY`
+- **Cloudflare R2**: Set `S3_ENDPOINT` to R2 endpoint URL
+- **Aliyun OSS**: Set `S3_ENDPOINT` to OSS endpoint (forcePathStyle already enabled)

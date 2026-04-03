@@ -1,16 +1,10 @@
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Text } from "@/components/ui/text"
-import * as React from "react"
-import { Pressable, type TextInput, View } from "react-native"
+import * as React from 'react'
+import { Pressable, type TextInput, View } from 'react-native'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Text } from '@/components/ui/text'
 
 interface SignInFormProps {
   onSubmit: (email: string, password: string) => void
@@ -19,8 +13,8 @@ interface SignInFormProps {
 }
 
 export function SignInForm({ onSubmit, onNavigateToSignUp, loading }: SignInFormProps) {
-  const [email, setEmail] = React.useState("")
-  const [password, setPassword] = React.useState("")
+  const [email, setEmail] = React.useState('')
+  const [password, setPassword] = React.useState('')
   const passwordInputRef = React.useRef<TextInput>(null)
 
   function onEmailSubmitEditing() {
@@ -70,7 +64,7 @@ export function SignInForm({ onSubmit, onNavigateToSignUp, loading }: SignInForm
               />
             </View>
             <Button className="w-full" onPress={handleSubmit} disabled={loading}>
-              <Text>{loading ? "Signing in..." : "Sign In"}</Text>
+              <Text>{loading ? 'Signing in...' : 'Sign In'}</Text>
             </Button>
           </View>
           <View className="flex-row items-center justify-center gap-1">

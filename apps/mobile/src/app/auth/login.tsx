@@ -1,8 +1,8 @@
-import { useState } from "react"
-import { Alert, KeyboardAvoidingView, Platform, ScrollView } from "react-native"
-import { useRouter } from "expo-router"
-import { signIn } from "@/lib/auth-client"
-import { SignInForm } from "@/components/sign-in-form"
+import { useRouter } from 'expo-router'
+import { useState } from 'react'
+import { Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native'
+import { SignInForm } from '@/components/block/sign-in-form'
+import { signIn } from '@/lib/auth-client'
 
 export default function LoginScreen() {
   const router = useRouter()
@@ -10,19 +10,16 @@ export default function LoginScreen() {
 
   const handleSignIn = async (email: string, password: string) => {
     if (!email || !password) {
-      Alert.alert("Error", "Please fill in all fields")
+      Alert.alert('Error', 'Please fill in all fields')
       return
     }
 
     setLoading(true)
     try {
       await signIn.email({ email, password })
-      router.replace("/")
+      router.replace('/')
     } catch (err) {
-      Alert.alert(
-        "Login Failed",
-        err instanceof Error ? err.message : "Invalid email or password"
-      )
+      Alert.alert('Login Failed', err instanceof Error ? err.message : 'Invalid email or password')
     } finally {
       setLoading(false)
     }
@@ -30,7 +27,7 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       className="flex-1"
     >
       <ScrollView
@@ -40,7 +37,7 @@ export default function LoginScreen() {
       >
         <SignInForm
           onSubmit={handleSignIn}
-          onNavigateToSignUp={() => router.push("/auth/register")}
+          onNavigateToSignUp={() => router.push('/auth/register')}
           loading={loading}
         />
       </ScrollView>
