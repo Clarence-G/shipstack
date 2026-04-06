@@ -3,8 +3,8 @@
 A monorepo scaffold for type-safe full-stack apps. Three apps share one API contract:
 
 - `apps/backend` — Hono server, port 4001
-- `apps/frontend` — React SPA, port 5173
-- `apps/mobile` — Expo React Native app, port 8081
+- `apps/frontend` — React SPA, port 4000
+- `apps/mobile` — Expo React Native app (Metro default: 8081)
 - `packages/contract` — oRPC + Zod contract (source of truth for all API types)
 
 ## Architecture
@@ -53,8 +53,10 @@ These apply everywhere — know them before writing any code:
 | `bun run dev:backend` | Backend only |
 | `bun run dev:frontend` | Frontend only |
 | `bun run dev:mobile` | Expo mobile dev server |
+| `bun run db:create` | Create the PostgreSQL database (first time only) |
 | `bun run db:generate` | Generate Drizzle migration files after schema change |
 | `bun run db:migrate` | Apply pending migrations |
 | `bun run db:seed` | Insert test user (test@example.com / password123) |
 | `bun run lint` | Check with Biome |
 | `bun run lint:fix` | Auto-fix lint + format |
+| `bun run format` | Format all files with Biome |
