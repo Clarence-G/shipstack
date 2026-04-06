@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "MyApp Mobile",
+    "slug": "myapp-mobile",
+    "scheme": "myapp",
+    "userInterfaceStyle": "automatic",
+    "orientation": "default",
+    "web": {
+      "output": "static"
+    },
+    "plugins": ["expo-secure-store"]
+  }
+}

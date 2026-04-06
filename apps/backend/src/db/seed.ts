@@ -1,4 +1,3 @@
-import { db } from './index'
 import { auth } from '../lib/auth'
 
 const TEST_USER = {

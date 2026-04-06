@@ -1,9 +1,10 @@
 import { createOpenAI } from '@ai-sdk/openai'
 import type { LanguageModel } from 'ai'
+import { env } from './env'
 
 const openai = createOpenAI({
-  apiKey: process.env.AI_API_KEY,
-  baseURL: process.env.AI_BASE_URL,
+  apiKey: env.AI_API_KEY,
+  baseURL: env.AI_BASE_URL,
 })
 
 /**
@@ -12,5 +13,5 @@ const openai = createOpenAI({
  * Compatible with any OpenAI-format provider (OpenAI, DeepSeek, Ollama, etc.)
  */
 export function getModel(): LanguageModel {
-  return openai(process.env.AI_MODEL ?? 'gpt-4o-mini')
+  return openai(env.AI_MODEL)
 }

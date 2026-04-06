@@ -1,6 +1,6 @@
 import { oc } from '@orpc/contract'
-import { z } from 'zod'
 import type { UIMessage } from 'ai'
+import { z } from 'zod'
 
 /**
  * AI contract.
@@ -21,9 +21,10 @@ export const aiContract = {
    *     eventIteratorToUnproxiedDataStream(await client.ai.chat({...}))
    *   }})
    */
-  chat: oc
-    .input(z.object({
+  chat: oc.input(
+    z.object({
       chatId: z.string().describe('Unique conversation identifier'),
       messages: z.custom<UIMessage[]>().describe('Chat messages in AI SDK UIMessage format'),
-    })),
+    }),
+  ),
 }

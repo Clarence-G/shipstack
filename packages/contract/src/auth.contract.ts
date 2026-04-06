@@ -22,7 +22,5 @@ export const authContract = {
    * Get the currently authenticated user's profile.
    * Requires a valid session (authMiddleware).
    */
-  me: oc
-    .input(z.object({}))
-    .output(UserSchema),
+  me: oc.input(z.object({})).output(UserSchema),
 }

@@ -1,6 +1,7 @@
 import { os } from '../orpc'
-import { authRouter } from './auth.router'
 import { aiRouter } from './ai.router'
+import { authRouter } from './auth.router'
+import { storageRouter } from './storage.router'
 
 /**
  * Root router — assembled from all domain routers.
@@ -9,6 +10,7 @@ import { aiRouter } from './ai.router'
 export const router = os.router({
   auth: authRouter,
   ai: aiRouter,
+  storage: storageRouter,
 })
 
 export type AppRouter = typeof router
