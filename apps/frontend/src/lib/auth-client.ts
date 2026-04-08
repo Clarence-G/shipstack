@@ -13,11 +13,12 @@ export const { useSession } = authClient
  * Wrap a Better Auth method so it throws on error instead of returning { data, error }.
  * This unifies error handling: both oRPC (throws ORPCError) and Better Auth use try/catch.
  */
-function throwOnError<TArgs extends any[], TReturn>(fn: (...args: TArgs) => Promise<TReturn>) {
+function throwOnError<TArgs extends unknown[], TReturn>(fn: (...args: TArgs) => Promise<TReturn>) {
   return async (...args: TArgs) => {
     const result = await fn(...args)
-    if (result && typeof result === 'object' && 'error' in result && (result as any).error) {
-      throw new Error((result as any).error.message ?? 'Unknown error')
+    if (result && typeof result === 'object' && 'error' in result) {
+      const err = (result as { error: { message?: string } | null }).error
+      if (err) throw new Error(err.message ?? 'Unknown error')
     }
     return result
   }

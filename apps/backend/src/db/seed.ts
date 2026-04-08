@@ -8,12 +8,13 @@ const TEST_USER = {
 
 console.log(`Seeding test user: ${TEST_USER.email}`)
 
-const result = await auth.api.signUpEmail({ body: TEST_USER })
-
-if (result.user) {
-  console.log(`Test user created: ${result.user.email} (id: ${result.user.id})`)
-} else {
-  console.log('Test user may already exist')
+try {
+  const result = await auth.api.signUpEmail({ body: TEST_USER })
+  if (result.user) {
+    console.log(`Test user created: ${result.user.email} (id: ${result.user.id})`)
+  }
+} catch (_err) {
+  console.log('Test user already exists, skipping creation')
 }
 
 console.log(`\nLogin credentials:`)

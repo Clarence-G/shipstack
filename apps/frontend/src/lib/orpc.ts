@@ -5,7 +5,7 @@ import type { ContractRouterClient } from '@orpc/contract'
 import { createTanstackQueryUtils } from '@orpc/tanstack-query'
 
 const link = new RPCLink({
-  url: `${import.meta.env.VITE_API_URL ?? ''}/rpc`,
+  url: `${import.meta.env.VITE_API_URL ?? window.location.origin}/rpc`,
   fetch: (url, options) => fetch(url, { ...options, credentials: 'include' }),
 })
 

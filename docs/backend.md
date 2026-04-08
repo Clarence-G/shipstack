@@ -139,6 +139,27 @@ After `authMiddleware`, context contains:
 
 If no valid session: throws `ORPCError('UNAUTHORIZED')`.
 
+### Optional Auth Middleware
+
+Use when a procedure works for both authenticated and anonymous users (e.g., public feed that shows like-status for logged-in users):
+
+```ts
+import { optionalAuthMiddleware } from '../orpc'
+
+export const postRouter = {
+  list: os.post.list
+    .use(optionalAuthMiddleware)
+    .handler(async ({ context }) => {
+      const userId = context.user?.id  // undefined if not logged in
+      // ... return posts, conditionally include like status
+    }),
+}
+```
+
+After `optionalAuthMiddleware`, context contains:
+- `context.user` — user object if authenticated, `undefined` if anonymous
+- `context.session` — session object if authenticated, `undefined` if anonymous
+
 ## Adding a New API Procedure
 
 ### Step 1: Define the contract
@@ -330,7 +351,45 @@ await db.delete(todo).where(eq(todo.id, id))
 
 **Important:** `where()` accepts a single condition. Use `and()` / `or()` to combine multiple.
 
-## Authentication (Better Auth)
+### Advanced Query Patterns
+
+**Dynamic conditions array:**
+
+```ts
+import type { SQL } from 'drizzle-orm'
+import { eq, and, ilike, gte } from 'drizzle-orm'
+
+// Build conditions at runtime, then apply with and()
+const conditions: SQL[] = []
+if (input.userId) conditions.push(eq(todo.userId, input.userId))
+if (input.search) conditions.push(ilike(todo.title, `%${input.search}%`))
+if (input.since) conditions.push(gte(todo.createdAt, input.since))
+
+const results = await db.select().from(todo)
+  .where(conditions.length > 0 ? and(...conditions) : undefined)
+```
+
+**Batch lookup with `inArray`:**
+
+```ts
+import { inArray } from 'drizzle-orm'
+
+// Never use sql`id = ANY(${ids})` — use inArray() instead
+const users = await db.select().from(user).where(inArray(user.id, userIds))
+```
+
+**Increment / decrement a counter:**
+
+```ts
+import { sql } from 'drizzle-orm'
+
+// Atomic increment — never read-then-write
+await db.update(post)
+  .set({ commentsCount: sql`${post.commentsCount} + 1` })
+  .where(eq(post.id, postId))
+```
+
+
 
 ### Config (`src/lib/auth.ts`)
 

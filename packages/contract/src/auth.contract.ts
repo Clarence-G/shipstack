@@ -8,6 +8,7 @@ export const UserSchema = z.object({
   id: z.string(),
   email: z.string().email(),
   name: z.string(),
+  image: z.string().nullable().optional(),
   createdAt: z.date(),
 })
 

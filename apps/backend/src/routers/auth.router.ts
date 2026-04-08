@@ -10,6 +10,7 @@ export const authRouter = {
       id: context.user.id,
       email: context.user.email,
       name: context.user.name,
+      image: context.user.image ?? null,
       createdAt: context.user.createdAt,
     }
   }),

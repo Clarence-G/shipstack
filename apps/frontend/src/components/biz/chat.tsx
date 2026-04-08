@@ -21,6 +21,7 @@ export function Chat() {
           { chatId, messages: options.messages },
           { signal: options.abortSignal },
         )
+        // biome-ignore lint/suspicious/noExplicitAny: oRPC EventIterator type is incompatible with AI SDK's expected input
         return eventIteratorToUnproxiedDataStream(iter as any)
       },
       reconnectToStream() {

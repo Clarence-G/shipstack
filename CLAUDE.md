@@ -39,11 +39,15 @@ These apply everywhere — know them before writing any code:
 
 3. **Biome, not ESLint/Prettier.** Run `bun run lint` to check. Run `bun run lint:fix` to auto-fix. Config is in `biome.json`.
 
-4. **Drizzle for all DB access.** No raw SQL strings. Schema lives in `apps/backend/src/db/schema.ts`. After changing schema: `bun run db:generate` then `bun run db:migrate`.
+4. **Drizzle for all DB access.** No raw SQL strings — this applies everywhere, including `seed.ts`. Schema lives in `apps/backend/src/db/schema.ts`. After changing schema: `bun run db:generate` then `bun run db:migrate`.
 
 5. **Zod validation in the contract.** Input/output schemas belong in `packages/contract`, not in route handlers.
 
 6. **Environment variables are validated at startup.** Add new vars to `apps/backend/src/lib/env.ts` (Zod schema) and `.env.example`. Never access `process.env` directly.
+
+7. **`as unknown as` and `as any` are red flags.** If you need these in implementation code, you're using the wrong API — stop and find the correct approach. For genuine third-party type incompatibilities, use `biome-ignore` with an explanation. Never use casts to silence a type error you don't understand.
+
+8. **Interactive elements must have correct semantics.** Clickable areas → `<button type="button">`. Navigation → `<Link>` or `<a>`. Never bind `onClick` to `<div>` or `<span>` — keyboard users and screen readers won't be able to trigger them.
 
 ## Commands
 

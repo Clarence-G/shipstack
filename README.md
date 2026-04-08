@@ -49,9 +49,9 @@ The contract is imported directly via TypeScript path aliases — no build step.
 ## Quick Start
 
 ```bash
-# 1. Clone and install
-git clone https://github.com/your-username/shipstack
-cd shipstack
+# 1. Create your repo from the template
+gh repo create my-app --template Clarence-G/shipstack --clone --private
+cd my-app
 bun install
 
 # 2. Configure environment
@@ -66,9 +66,10 @@ bun run db:migrate
 bun run dev
 ```
 
+Or click **"Use this template"** on GitHub to create your repo from the web.
+
 - Backend: `http://localhost:4001`
 - Frontend: `http://localhost:4000`
-- API docs: `http://localhost:4001/docs`
 
 ## Commands
 

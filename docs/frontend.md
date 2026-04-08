@@ -253,6 +253,25 @@ Sizes: `default`, `xs`, `sm`, `lg`, `icon`, `icon-xs`, `icon-sm`, `icon-lg`
 
 `asChild` merges Button styles onto the child element via Radix Slot.
 
+**Interactive elements — always use correct semantics:**
+
+```tsx
+// Clickable area → <button>, never <div onClick>
+<button type="button" onClick={() => navigate('/search')} className="...">
+  Search
+</button>
+
+// Navigable area → <Link> or <Button asChild>
+<Link to="/profile">Profile</Link>
+<Button asChild variant="ghost"><Link to="/settings">Settings</Link></Button>
+
+// WRONG — div/span with onClick breaks keyboard + screen reader access
+<div onClick={() => navigate('/search')}>Search</div>  // ❌
+<span onClick={handleClick}>Click me</span>            // ❌
+```
+
+Biome enforces this via `lint/a11y/noStaticElementInteractions`. Run `bun run lint` to catch issues early.
+
 **Input:**
 
 ```tsx

@@ -16,8 +16,13 @@ export interface InitialContext {
 export const os = implement(contract).$context<InitialContext>()
 
 /**
- * Auth middleware — bridges Better Auth session into oRPC context.
- * Validates session from request headers, injects user + session into context.
+ * Auth middleware — validates session, injects user + session into context.
+ * Throws UNAUTHORIZED if no valid session exists.
+ *
+ * @example
+ * os.todo.list.use(authMiddleware).handler(async ({ context }) => {
+ *   const userId = context.user.id  // guaranteed to exist
+ * })
  */
 export const authMiddleware = baseOs
   .$context<InitialContext>()
@@ -34,6 +39,34 @@ export const authMiddleware = baseOs
       context: {
         session: sessionData.session,
         user: sessionData.user,
+      },
+    })
+  })
+
+/**
+ * Optional auth middleware — injects user into context if session exists, skips if not.
+ * Use on procedures that work for both authenticated and anonymous users.
+ *
+ * After this middleware, context contains:
+ * - `context.user` — user object if authenticated, undefined if not
+ * - `context.session` — session object if authenticated, undefined if not
+ *
+ * @example
+ * os.post.list.use(optionalAuthMiddleware).handler(async ({ context }) => {
+ *   const userId = context.user?.id  // may be undefined
+ * })
+ */
+export const optionalAuthMiddleware = baseOs
+  .$context<InitialContext>()
+  .middleware(async ({ context, next }) => {
+    const sessionData = await auth.api.getSession({
+      headers: context.headers,
+    })
+
+    return next({
+      context: {
+        user: sessionData?.user ?? undefined,
+        session: sessionData?.session ?? undefined,
       },
     })
   })
