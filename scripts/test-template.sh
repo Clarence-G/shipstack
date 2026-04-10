@@ -26,7 +26,6 @@ rsync -a \
   --exclude='.env' \
   --exclude='.env.local' \
   --exclude='*.tsbuildinfo' \
-  --exclude='drizzle' \
   --exclude='.DS_Store' \
   --exclude='bun.lock' \
   --exclude='.git' \
