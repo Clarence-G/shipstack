@@ -140,23 +140,66 @@ function toDiagnosticRecord(d: ts.Diagnostic): DiagnosticRecord {
   }
 }
 
-// ── Request handler ───────────────────────────────────────────────────────────
+// ── Request handlers ──────────────────────────────────────────────────────────
 
-interface CheckRequest { file: string }
+// file: single-file check  |  project: full-workspace check
+type DaemonRequest = { file: string } | { project: string }
 interface CheckResponse { ok: boolean; errors?: DiagnosticRecord[]; fatal?: string }
 
-function handleCheck(req: CheckRequest): CheckResponse {
-  const entry = getOrCreateService(req.file)
+function handleFileCheck(filePath: string): CheckResponse {
+  const entry = getOrCreateService(filePath)
   if ('fatal' in entry) return { ok: false, fatal: entry.fatal }
 
   const { service } = entry
   const diagnostics = [
-    ...service.getSyntacticDiagnostics(req.file),
-    ...service.getSemanticDiagnostics(req.file),
+    ...service.getSyntacticDiagnostics(filePath),
+    ...service.getSemanticDiagnostics(filePath),
   ]
 
   if (diagnostics.length === 0) return { ok: true }
   return { ok: false, errors: diagnostics.map(toDiagnosticRecord) }
+}
+
+function handleProjectCheck(projectDir: string): CheckResponse {
+  const configPath = ts.findConfigFile(projectDir, ts.sys.fileExists, 'tsconfig.json')
+  if (!configPath) return { ok: false, fatal: `No tsconfig.json found in ${projectDir}` }
+
+  const configFile = ts.readConfigFile(configPath, ts.sys.readFile)
+  if (configFile.error) {
+    return { ok: false, fatal: ts.flattenDiagnosticMessageText(configFile.error.messageText, '\n') }
+  }
+
+  const parsed = ts.parseJsonConfigFileContent(configFile.config, ts.sys, path.dirname(configPath))
+  const projectFiles = parsed.fileNames.filter(f => !f.includes('/node_modules/'))
+
+  // Ensure all project files are registered and marked for re-read
+  // (node_modules .d.ts stay cached — only source files get bumped)
+  let entry = serviceCache.get(configPath)
+  if (!entry) {
+    const host = new MutableLanguageServiceHost(parsed.options, [...projectFiles])
+    const service = ts.createLanguageService(host, ts.createDocumentRegistry())
+    entry = { service, host, configPath }
+    serviceCache.set(configPath, entry)
+  } else {
+    for (const f of projectFiles) {
+      entry.host.ensureFile(f)
+      entry.host.updateFile(f) // bump version so TS re-reads source file from disk
+    }
+  }
+
+  const { service } = entry
+  const allErrors = projectFiles.flatMap(f => [
+    ...service.getSyntacticDiagnostics(f),
+    ...service.getSemanticDiagnostics(f),
+  ]).map(toDiagnosticRecord)
+
+  if (allErrors.length === 0) return { ok: true }
+  return { ok: false, errors: allErrors }
+}
+
+function handleRequest(req: DaemonRequest): CheckResponse {
+  if ('file' in req) return handleFileCheck(req.file)
+  return handleProjectCheck(req.project)
 }
 
 // ── Unix socket server ────────────────────────────────────────────────────────
@@ -191,7 +234,7 @@ function startServer() {
       const line = buf.slice(0, nl)
       buf = buf.slice(nl + 1)
 
-      let req: CheckRequest
+      let req: DaemonRequest
       try {
         req = JSON.parse(line)
       } catch {
@@ -200,7 +243,7 @@ function startServer() {
         return
       }
 
-      socket.write(JSON.stringify(handleCheck(req)) + '\n')
+      socket.write(JSON.stringify(handleRequest(req)) + '\n')
       socket.end()
       resetIdleTimer(server)
     })

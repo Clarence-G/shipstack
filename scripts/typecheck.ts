@@ -1,14 +1,21 @@
 /**
  * TypeCheck Client
  *
- * Usage: bun run typecheck <file>
+ * Usage:
+ *   bun run typecheck <file>       single-file check
+ *   bun run typecheck <directory>  full project check (all files in that workspace's tsconfig)
+ *
+ * Examples:
+ *   bun run typecheck apps/backend/src/routers/todo.router.ts
+ *   bun run typecheck apps/backend
+ *   bun run typecheck apps/frontend
  *
  * Startup flow:
  *   1. Check if daemon socket already exists → connect directly
  *   2. If not: try to create a "spawning" sentinel file atomically
  *      a. Created (won the race) → spawn daemon, wait for daemon's ready-file
  *      b. Already exists (lost race) → poll for socket file to appear
- *   3. Send { file } request over Unix socket, print diagnostics
+ *   3. Send request over Unix socket, print diagnostics
  *
  * The "spawning" sentinel (.spawning) is separate from daemon's lockfile
  * (.lock) — daemon writes its own lock at startup. This avoids a race where
@@ -25,15 +32,28 @@ import { DAEMON_SOCKET_PATH, DAEMON_READY_PATH } from './typecheck-constants'
 
 const targetArg = process.argv[2]
 if (!targetArg) {
-  process.stderr.write('Usage: bun run typecheck <file>\n')
+  process.stderr.write(
+    'Usage:\n' +
+    '  bun run typecheck <file>       # single-file check\n' +
+    '  bun run typecheck <directory>  # full project check\n',
+  )
   process.exit(1)
 }
-const targetFile = path.resolve(targetArg)
 
-if (!fs.existsSync(targetFile)) {
-  process.stderr.write(`File not found: ${targetFile}\n`)
+const targetPath = path.resolve(targetArg)
+
+// Determine mode: file → single-file check, directory → project check
+const isDirectory = fs.existsSync(targetPath) && fs.statSync(targetPath).isDirectory()
+
+if (!isDirectory && !fs.existsSync(targetPath)) {
+  process.stderr.write(`Not found: ${targetPath}\n`)
   process.exit(1)
 }
+
+type DaemonRequest = { file: string } | { project: string }
+const request: DaemonRequest = isDirectory
+  ? { project: targetPath }
+  : { file: targetPath }
 
 // ── Daemon management ────────────────────────────────────────────────────────
 
@@ -115,13 +135,13 @@ interface CheckResponse {
   fatal?: string
 }
 
-function sendRequest(file: string): Promise<CheckResponse> {
+function sendRequest(req: DaemonRequest): Promise<CheckResponse> {
   return new Promise((resolve, reject) => {
     const socket = net.createConnection(DAEMON_SOCKET_PATH)
     let buf = ''
 
     socket.on('connect', () => {
-      socket.write(JSON.stringify({ file }) + '\n')
+      socket.write(JSON.stringify(req) + '\n')
     })
 
     socket.on('data', (chunk) => {
@@ -148,7 +168,7 @@ const YELLOW = '\x1b[33m'
 const CYAN   = '\x1b[36m'
 const DIM    = '\x1b[2m'
 
-function formatDiagnostics(errors: DiagnosticRecord[], targetFile: string): void {
+function formatDiagnostics(errors: DiagnosticRecord[], label: string): void {
   const cwd = process.cwd()
   for (const d of errors) {
     const rel = path.relative(cwd, d.file)
@@ -157,8 +177,7 @@ function formatDiagnostics(errors: DiagnosticRecord[], targetFile: string): void
     const msg = `${RED}${d.text}${RESET}`
     process.stdout.write(`${loc} — ${code}: ${msg}\n`)
   }
-  const rel = path.relative(cwd, targetFile)
-  process.stdout.write(`\nFound ${RED}${errors.length} error(s)${RESET} in ${CYAN}${rel}${RESET}\n`)
+  process.stdout.write(`\nFound ${RED}${errors.length} error(s)${RESET} in ${CYAN}${label}${RESET}\n`)
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -175,7 +194,7 @@ async function main() {
 
     let response: CheckResponse
     try {
-      response = await sendRequest(targetFile)
+      response = await sendRequest(request)
     } catch (err) {
       const code = (err as NodeJS.ErrnoException).code
       if (attempt === 0 && (code === 'ENOENT' || code === 'ECONNREFUSED')) {
@@ -193,13 +212,14 @@ async function main() {
       process.exit(1)
     }
 
+    const label = path.relative(process.cwd(), targetPath)
+
     if (response.ok) {
-      const rel = path.relative(process.cwd(), targetFile)
-      process.stdout.write(`✓ No type errors in ${CYAN}${rel}${RESET}\n`)
+      process.stdout.write(`✓ No type errors in ${CYAN}${label}${RESET}\n`)
       process.exit(0)
     }
 
-    formatDiagnostics(response.errors ?? [], targetFile)
+    formatDiagnostics(response.errors ?? [], label)
     process.exit(1)
   }
 

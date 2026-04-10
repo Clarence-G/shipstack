@@ -14,6 +14,8 @@
     "test": "bun run --filter @myapp/backend test",
     "test:backend": "bun run --filter @myapp/backend test",
     "typecheck": "bun run scripts/typecheck.ts",
+    "typecheck:backend": "bun run scripts/typecheck.ts apps/backend",
+    "typecheck:frontend": "bun run scripts/typecheck.ts apps/frontend",
     "lint": "bunx biome check .",
     "lint:fix": "bunx biome check --write .",
     "format": "bunx biome format --write .",
