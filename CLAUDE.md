@@ -28,6 +28,7 @@ Before working on any area, read the relevant guide:
 - **Frontend** (`apps/frontend`): @docs/frontend.md
 - **Mobile** (`apps/mobile`): @docs/mobile.md
 - **oRPC patterns** (client, streaming, errors): @docs/orpc.md
+- **Testing** (writing & running tests): @docs/testing.md
 
 ## Key Conventions
 
