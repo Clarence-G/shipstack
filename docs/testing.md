@@ -100,6 +100,8 @@ describe('<domain>.<procedure>', () => {
 
 The `client` runs through the **full middleware chain** (including `authMiddleware`) — it's not a mock. The auth middleware calls `auth.api.getSession()`, which is mocked to return `testUser` + `testSession`.
 
+**Limitation:** The auth mock always returns a valid session. You cannot test `UNAUTHORIZED` flows with the current setup. If needed in the future, make the mock configurable.
+
 ### 4. Run it
 
 ```bash
@@ -112,42 +114,6 @@ cd apps/backend && bun test src/routers/<domain>.router.test.ts
 const env = await createTestEnv({
   // Override test user fields
   userOverrides: { name: 'Admin', email: 'admin@test.com' },
-
-  // Extra seed data after base seed + user insert
-  seedFn: async (db) => {
-    await db.insert(todo).values({ title: 'Seeded', userId: '...' })
-  },
-})
-```
-
-**Caveat with `seedFn`:** It runs before `createTestEnv` returns, so you can't reference `env.testUser.id` inside it. If your seed needs the user ID, use `userOverrides` to set a known ID:
-
-```ts
-const USER_ID = 'test-user-123'
-const env = await createTestEnv({
-  userOverrides: { id: USER_ID },
-  seedFn: async (db) => {
-    await db.insert(file).values({
-      userId: USER_ID,
-      fileKey: 'test-file.txt',
-      filename: 'test.txt',
-      contentType: 'text/plain',
-      status: 'confirmed',
-    })
-  },
-})
-```
-
-Or seed after setup:
-
-```ts
-const env = await createTestEnv()
-await env.db.insert(file).values({
-  userId: env.testUser.id,
-  fileKey: 'test-file.txt',
-  filename: 'test.txt',
-  contentType: 'text/plain',
-  status: 'confirmed',
 })
 ```
 
@@ -164,7 +130,7 @@ Know the column names before inserting. Tables are defined in `src/db/schema.ts`
 | `chatMessage` | `chatId`, `userId`, `role`, `content` | `id`=UUID, `createdAt` |
 | `file` | `userId`, `fileKey`, `filename`, `contentType` | `id`=UUID, `status`='pending', `createdAt` |
 
-`createTestEnv()` automatically调用 `seedBase(db)` 插入后端运行所必须的基础数据（角色、枚举、配置等），并插入一个测试用户。你的测试文件只需按需插入自己的测试数据。
+`createTestEnv()` automatically calls `seedBase(db)` to insert base data required by the backend (roles, enums, configs), and inserts one test user. Your test file only needs to insert its own test-specific data.
 
 ### Insert pattern
 
@@ -365,10 +331,12 @@ describe('todo.delete', () => {
 })
 ```
 
+**Note:** Tests within the same file share a DB instance. The `todo.list` test that expects an empty list must run before any insert. If your tests might run in a different order, either use unique data per test or reset with `await env.db.delete(table)` in `beforeEach`.
+
 ## Checklist for New Test Files
 
 1. File name: `<domain>.router.test.ts`, co-located with the router
-2. External service mocks registered BEFORE `createTestEnv()` import
+2. External service mocks registered BEFORE `createTestEnv()` is called
 3. `const env = await createTestEnv()` at top level
 4. `afterAll(() => env.cleanup())` — always
 5. Test-specific seed data via `env.db.insert()`
@@ -402,6 +370,10 @@ Some modules run code at import time (e.g., `env.ts` parses `process.env`). If a
 Each test file gets its own PGLite. But tests within the same file share a DB. If test order matters, either:
 - Seed unique data per test (use unique fileKeys, IDs, etc.)
 - Reset with `await env.db.delete(table)` in `beforeEach`
+
+### New env variable breaks tests
+
+When you add a new variable to `src/lib/env.ts`, also add it to the env mock in `src/test/setup.ts`. Otherwise tests will see `undefined` for the new variable.
 
 ### Type errors with `env.client`
 

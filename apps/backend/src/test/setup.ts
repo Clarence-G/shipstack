@@ -9,9 +9,6 @@ import { createTestSession, createTestUser } from './fixtures'
 interface TestEnvOptions {
   /** Override the default test user */
   userOverrides?: Parameters<typeof createTestUser>[0]
-  /** Additional seed function run after base seed + user insert */
-  // biome-ignore lint/suspicious/noExplicitAny: drizzle/pglite return type varies by version
-  seedFn?: (db: any) => Promise<void>
 }
 
 /**
@@ -38,16 +35,10 @@ export async function createTestEnv(options?: TestEnvOptions) {
   const testSession = createTestSession(testUser.id)
   await db.insert(schema.user).values(testUser)
 
-  // 4. Run optional test-specific seed
-  if (options?.seedFn) {
-    await options.seedFn(db)
-  }
-
-  // 5. Mock the db module — all routers import from '../db' or '../db/index'
+  // 4. Mock the db module — routers import from '../db'
   mock.module('../db', () => ({ db }))
-  mock.module('../db/index', () => ({ db }))
 
-  // 6. Mock the auth module — bypass Better Auth, return our test user
+  // 5. Mock the auth module — bypass Better Auth, return our test user
   mock.module('../lib/auth', () => ({
     auth: {
       api: {
@@ -59,7 +50,8 @@ export async function createTestEnv(options?: TestEnvOptions) {
     },
   }))
 
-  // 7. Mock env module to avoid Zod validation errors in test context
+  // 6. Mock env module to avoid Zod validation errors in test context
+  //    IMPORTANT: when you add a new env var to src/lib/env.ts, add it here too
   mock.module('../lib/env', () => ({
     env: {
       ENV: 'dev',
@@ -77,7 +69,7 @@ export async function createTestEnv(options?: TestEnvOptions) {
     },
   }))
 
-  // 8. Dynamic import router AFTER mocks are registered
+  // 7. Dynamic import router AFTER mocks are registered
   const { router } = await import('../routers/index')
   const { createRouterClient } = await import('@orpc/server')
 

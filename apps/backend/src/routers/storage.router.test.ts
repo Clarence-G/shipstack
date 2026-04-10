@@ -19,6 +19,7 @@ mock.module('../lib/s3', () => ({
   S3_BUCKET: 'test-bucket',
 }))
 
+import { eq } from 'drizzle-orm'
 import { file } from '../db/schema'
 import { createTestEnv } from '../test/setup'
 
@@ -36,13 +37,11 @@ describe('storage.requestUploadUrl', () => {
     expect(result.fileKey).toContain(env.testUser.id)
     expect(result.fileKey).toContain('test.png')
 
-    // Verify file record was created in the DB
-    const records = await env.db.select().from(file)
-    expect(records.length).toBeGreaterThanOrEqual(1)
-    const pending = records.find((r) => r.fileKey === result.fileKey)
-    expect(pending).toBeDefined()
-    expect(pending!.status).toBe('pending')
-    expect(pending!.userId).toBe(env.testUser.id)
+    // Verify the exact file record in DB
+    const [record] = await env.db.select().from(file).where(eq(file.fileKey, result.fileKey))
+    expect(record).toBeDefined()
+    expect(record.status).toBe('pending')
+    expect(record.userId).toBe(env.testUser.id)
   })
 })
 
