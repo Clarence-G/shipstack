@@ -64,3 +64,5 @@ These apply everywhere — know them before writing any code:
 | `bun run lint` | Check with Biome |
 | `bun run lint:fix` | Auto-fix lint + format |
 | `bun run format` | Format all files with Biome |
+| `bun run test` | Run all backend tests |
+| `bun run test:backend` | Run all backend tests (explicit) |

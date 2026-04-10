@@ -585,6 +585,77 @@ const rpcHandler = new RPCHandler(router, {
 
 Zod validation happens automatically via the contract. If a client sends invalid input, oRPC returns a `BAD_REQUEST` error with Zod's error details. You do NOT need manual validation in handlers.
 
+## Testing
+
+Uses `bun test` with PGLite in-memory databases. Each test file gets a fresh DB instance.
+
+### Running tests
+
+```bash
+bun run test              # all backend tests
+bun run test:backend      # same (from root)
+cd apps/backend && bun test --watch  # watch mode
+```
+
+### Writing a handler test
+
+```ts
+import { afterAll, describe, expect, it } from 'bun:test'
+import { createTestEnv } from '../test/setup'
+
+const env = await createTestEnv()
+afterAll(() => env.cleanup())
+
+describe('todo.list', () => {
+  it('returns empty list for new user', async () => {
+    const result = await env.client.todo.list({})
+    expect(result).toEqual([])
+  })
+})
+```
+
+`createTestEnv()` provides:
+- `env.client` — typed oRPC client (runs full middleware chain in-process)
+- `env.db` — Drizzle instance for seeding test data
+- `env.testUser` — pre-inserted test user
+- `env.testSession` — mock session for the test user
+- `env.cleanup()` — close PGLite (call in `afterAll`)
+
+### Test-specific seed data
+
+Insert directly with `env.db` after `createTestEnv()`:
+
+```ts
+const env = await createTestEnv()
+await env.db.insert(todo).values({
+  title: 'Test todo',
+  userId: env.testUser.id,
+})
+```
+
+### Mocking external services
+
+Mock before `createTestEnv()` (which dynamic-imports routers):
+
+```ts
+import { mock } from 'bun:test'
+
+mock.module('@aws-sdk/s3-request-presigner', () => ({
+  getSignedUrl: async () => 'https://mock-url',
+}))
+
+import { createTestEnv } from '../test/setup'
+const env = await createTestEnv()
+```
+
+### Seed architecture
+
+| File | Purpose | When |
+|------|---------|------|
+| `src/db/seed-base.ts` | Base enums/configs | Auto — every test + dev seed |
+| `src/db/seed.ts` | Dev user via Better Auth | Manual — `bun run db:seed` |
+| Test file | Test-specific data | Manual — each test's responsibility |
+
 ## Environment Variables
 
 Configured in `apps/backend/.env` (copy from root `.env.example`):
