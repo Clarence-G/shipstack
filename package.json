@@ -13,6 +13,7 @@
     "db:migrate": "bun run --filter @myapp/backend db:migrate",
     "test": "bun run --filter @myapp/backend test",
     "test:backend": "bun run --filter @myapp/backend test",
+    "typecheck": "bun run scripts/typecheck.ts",
     "lint": "bunx biome check .",
     "lint:fix": "bunx biome check --write .",
     "format": "bunx biome format --write .",
@@ -22,6 +23,7 @@
     "@biomejs/biome": "^2.4.10",
     "concurrently": "^9.2.1",
     "lefthook": "^2.1.4",
-    "shadcn": "^4.1.1"
+    "shadcn": "^4.1.1",
+    "typescript": "^6.0.2"
   }
 }

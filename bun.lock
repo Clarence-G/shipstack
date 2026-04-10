@@ -9,6 +9,7 @@
         "concurrently": "^9.2.1",
         "lefthook": "^2.1.4",
         "shadcn": "^4.1.1",
+        "typescript": "^6.0.2",
       },
     },
     "apps/backend": {
