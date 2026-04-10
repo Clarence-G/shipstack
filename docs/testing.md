@@ -164,15 +164,7 @@ Know the column names before inserting. Tables are defined in `src/db/schema.ts`
 | `chatMessage` | `chatId`, `userId`, `role`, `content` | `id`=UUID, `createdAt` |
 | `file` | `userId`, `fileKey`, `filename`, `contentType` | `id`=UUID, `status`='pending', `createdAt` |
 
-### Seed layers
-
-| Layer | File | When | What |
-|-------|------|------|------|
-| Base | `src/db/seed-base.ts` | Automatic (every test) | Roles, categories, enums — schema-required reference data |
-| User | `src/test/setup.ts` | Automatic (every test) | One test user + session |
-| Test-specific | Your `.test.ts` file | Manual | Data your tests need (files, messages, etc.) |
-
-You only need to add the third layer in your test file. The first two are handled by `createTestEnv()`.
+`createTestEnv()` automatically调用 `seedBase(db)` 插入后端运行所必须的基础数据（角色、枚举、配置等），并插入一个测试用户。你的测试文件只需按需插入自己的测试数据。
 
 ### Insert pattern
 

@@ -650,11 +650,7 @@ const env = await createTestEnv()
 
 ### Seed architecture
 
-| File | Purpose | When |
-|------|---------|------|
-| `src/db/seed-base.ts` | Base enums/configs | Auto — every test + dev seed |
-| `src/db/seed.ts` | Dev user via Better Auth | Manual — `bun run db:seed` |
-| Test file | Test-specific data | Manual — each test's responsibility |
+`seedBase(db)` (`src/db/seed-base.ts`) 插入后端运行所必须的基础数据（角色、枚举、配置等），由 `createTestEnv()` 和开发环境 `seed.ts` 共同调用。测试文件按需通过 `env.db.insert()` 插入自己的测试数据。
 
 ## Environment Variables
 
