@@ -5,3 +5,4 @@ dist/
 *.tsbuildinfo
 drizzle/
 .DS_Store
+pgdata/

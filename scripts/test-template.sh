@@ -30,8 +30,9 @@ rsync -a \
   --exclude='.DS_Store' \
   --exclude='bun.lock' \
   --exclude='.git' \
-  --exclude='.claude' \
   --exclude='.agents' \
+  --exclude='pgdata' \
+  --exclude='docs/plans' \
   "$REPO_ROOT/" "$TMP_DIR/"
 
 cd "$TMP_DIR"
@@ -50,13 +51,15 @@ for f in \
   CLAUDE.md \
   .env.example \
   apps/backend/src/index.ts \
+  apps/backend/src/test/setup.ts \
   apps/frontend/src/main.tsx \
   apps/mobile/src/app/_layout.tsx \
   packages/contract/src/index.ts \
   docs/backend.md \
   docs/frontend.md \
   docs/mobile.md \
-  docs/orpc.md
+  docs/orpc.md \
+  docs/testing.md
 do
   if [ ! -f "$f" ]; then
     echo "  MISSING: $f"
@@ -72,6 +75,11 @@ bunx tsc --noEmit -p packages/contract/tsconfig.json 2>&1 || true
 echo ""
 echo "==> Lint check ..."
 bunx biome check . --max-diagnostics=5 2>&1 || true
+
+echo ""
+echo "==> Running backend tests ..."
+cd apps/backend && bun test 2>&1 || true
+cd "$TMP_DIR"
 
 echo ""
 echo "Template test directory: $TMP_DIR"
