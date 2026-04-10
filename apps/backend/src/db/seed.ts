@@ -1,10 +1,15 @@
 import { auth } from '../lib/auth'
+import { db } from './index'
+import { seedBase } from './seed-base'
 
 const TEST_USER = {
   name: 'Test User',
   email: 'test@example.com',
   password: 'password123',
 }
+
+// Seed base data first (roles, configs, etc.)
+await seedBase(db)
 
 console.log(`Seeding test user: ${TEST_USER.email}`)
 
