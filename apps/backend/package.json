@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "bun run --hot src/index.ts",
+    "dev": "bun run --env-file ../../.env --hot src/index.ts",
     "db:create": "bun run src/db/create.ts",
     "db:seed": "bun run src/db/seed.ts",
     "db:generate": "bunx drizzle-kit generate",

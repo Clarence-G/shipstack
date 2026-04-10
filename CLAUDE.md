@@ -20,15 +20,97 @@ packages/contract  (Zod schemas + oRPC procedures)
 The contract package is imported directly via TypeScript path aliases — no build step.
 Frontend and mobile never import from backend, and vice versa. All shared types flow through the contract.
 
+## Architecture Quick Reference
+
+Do NOT explore the project structure with Glob/Grep. The complete structure is documented below. Read the relevant guide for the area you're working in, then start coding.
+
+### Backend (`apps/backend/src/`)
+
+```
+├── index.ts              — Hono entry: CORS, auth routes (/api/auth/*), oRPC handler (/rpc/*)
+├── orpc.ts               — implement(contract), InitialContext, authMiddleware, optionalAuthMiddleware
+├── routers/
+│   ├── index.ts          — Root router (assembles all domain routers)
+│   ├── auth.router.ts    — auth.me handler
+│   └── ai.router.ts      — ai.chat streaming handler
+├── db/
+│   ├── index.ts          — Drizzle client (postgres.js + schema)
+│   ├── schema.ts         — All table definitions (Better Auth + business)
+│   ├── seed-base.ts      — Base seed data (used by tests and dev seed)
+│   └── seed.ts           — Dev seed script
+├── lib/
+│   ├── auth.ts           — Better Auth config (drizzle adapter, expo plugin)
+│   ├── ai.ts             — AI model factory (OpenAI-compatible)
+│   ├── env.ts            — Env var validation (Zod schema)
+│   ├── logger.ts         — Pino logger (pretty dev, JSON prod)
+│   └── s3.ts             — S3 client (MinIO/AWS/R2)
+└── test/
+    ├── setup.ts          — createTestEnv() — PGLite + typed oRPC client
+    └── fixtures.ts       — createTestUser(), createTestSession()
+```
+
+### Frontend (`apps/frontend/src/`)
+
+```
+├── main.tsx              — ReactDOM root, QueryClient, BrowserRouter, Toaster
+├── app.tsx               — Route definitions
+├── app.css               — Tailwind v4 + OKLCH theme variables
+├── layouts/
+│   └── root.layout.tsx   — Header nav + <Outlet />
+├── pages/                — Route pages (thin wrappers around blocks)
+├── components/
+│   ├── ui/               — shadcn/ui primitives (MUST use — see convention 9)
+│   ├── block/            — Page-level blocks (login-form, signup-form)
+│   ├── biz/              — Business components (chat)
+│   └── shared/           — Shared reusable components
+├── hooks/                — Custom hooks (use-upload, etc.)
+└── lib/
+    ├── orpc.ts           — oRPC client + TanStack Query utils
+    ├── auth-client.ts    — Better Auth browser client (throwOnError wrappers)
+    ├── logger.ts         — Pino browser logger
+    └── utils.ts          — cn() helper (clsx + tailwind-merge)
+```
+
+### Mobile (`apps/mobile/src/`)
+
+```
+├── global.css            — Uniwind Tailwind v4 + OKLCH theme variables
+├── app/                  — Expo Router file routes
+│   ├── _layout.tsx       — Root: ThemeProvider + QueryProvider + SheetProvider + Toaster + PortalHost
+│   ├── index.tsx         — Home screen (auth guard)
+│   └── auth/             — Auth group (login, register)
+├── components/
+│   ├── ui/               — RN Reusables components (MUST use — see convention 9)
+│   └── block/            — Block components (sign-in-form, sign-up-form, user-menu)
+├── hooks/
+│   └── use-upload.ts     — File upload hook (presigned URL + S3)
+└── lib/
+    ├── orpc.ts           — oRPC client (cookie-based auth via getCookie())
+    ├── auth-client.ts    — Better Auth Expo client (SecureStore sessions)
+    ├── theme.ts          — Navigation theme colors
+    └── utils.ts          — cn() helper (clsx + tailwind-merge)
+```
+
+### Contract (`packages/contract/src/`)
+
+```
+├── index.ts              — Root contract { auth, ai, storage }
+├── auth.contract.ts      — Auth procedures (me)
+├── ai.contract.ts        — AI procedures (chat streaming)
+└── storage.contract.ts   — File storage (requestUploadUrl, confirmUpload, getDownloadUrl)
+```
+
 ## Development Guides
 
-Before working on any area, read the relevant guide:
+Read the relevant guide BEFORE writing any code in that area. The guides contain implementation patterns, code examples, and component APIs that you MUST follow.
 
-- **Backend** (`apps/backend`): @docs/backend.md
-- **Frontend** (`apps/frontend`): @docs/frontend.md
-- **Mobile** (`apps/mobile`): @docs/mobile.md
-- **oRPC patterns** (client, streaming, errors): @docs/orpc.md
-- **Testing** (writing & running tests): @docs/testing.md
+| Area | Guide | When to read |
+|------|-------|-------------|
+| Backend | @docs/backend.md | Implementing handlers, adding DB tables, auth, AI, tests |
+| Frontend | @docs/frontend.md | Any UI work in `apps/frontend/` — includes full UI component list with imports |
+| Mobile | @docs/mobile.md | Any UI work in `apps/mobile/` — includes full UI component list with imports |
+| oRPC | @docs/orpc.md | Client setup, streaming, error handling, TanStack Query |
+| Testing | @docs/testing.md | Writing or modifying tests |
 
 ## Key Conventions
 
@@ -49,6 +131,8 @@ These apply everywhere — know them before writing any code:
 7. **`as unknown as` and `as any` are red flags.** If you need these in implementation code, you're using the wrong API — stop and find the correct approach. For genuine third-party type incompatibilities, use `biome-ignore` with an explanation. Never use casts to silence a type error you don't understand.
 
 8. **Interactive elements must have correct semantics.** Clickable areas → `<button type="button">`. Navigation → `<Link>` or `<a>`. Never bind `onClick` to `<div>` or `<span>` — keyboard users and screen readers won't be able to trigger them.
+
+9. **Use pre-installed UI components. Do NOT hand-write equivalents.** Frontend uses shadcn/ui, mobile uses React Native Reusables — both in `@/components/ui/`. Check the installed component list in the relevant guide (@docs/frontend.md or @docs/mobile.md) BEFORE writing any UI. If a component is not installed, add it via CLI (`bunx shadcn@latest add <name>` for frontend, `npx @react-native-reusables/cli@latest add <name> --yes` for mobile). Never hand-write a Card, Button, Dialog, Input, Select, etc. when the library provides one.
 
 ## Commands
 

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.4.10/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.11/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -22,7 +22,17 @@
       "correctness": {
         "noUnusedImports": "warn",
         "noUnusedVariables": "warn",
-        "noUnknownFunction": "off"
+        "noUnknownFunction": "off",
+        "useExhaustiveDependencies": {
+          "level": "warn",
+          "options": {
+            "hooks": [
+              { "name": "useRouter", "stableResult": true },
+              { "name": "useNavigate", "stableResult": true },
+              { "name": "useNavigation", "stableResult": true }
+            ]
+          }
+        }
       },
       "style": {
         "noNonNullAssertion": "off",

@@ -22,7 +22,7 @@
     "prepare": "lefthook install"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.10",
+    "@biomejs/biome": "^2.4.11",
     "concurrently": "^9.2.1",
     "lefthook": "^2.1.4",
     "shadcn": "^4.1.1",

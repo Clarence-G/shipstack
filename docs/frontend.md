@@ -184,35 +184,39 @@ components/
 **block/** — Larger compositions based on shadcn blocks. These contain both UI and business logic (auth calls, API calls) since the forms are simple enough that splitting props/logic adds no value. Pages import blocks directly.
 **biz/** — Domain-specific components that don't fit the block pattern (e.g., streaming chat).
 
-### Installed components
+### Installed Components — Quick Reference
+
+**MANDATORY:** Use these components for ALL UI. Never hand-write Tailwind equivalents (e.g., never write `<div className="rounded-lg border p-4">` when `<Card>` exists). If a component you need is not listed, add it via `bunx shadcn@latest add <name>`.
 
 **Primitives (ui/):**
 
-| Component | Purpose |
-|-----------|---------|
-| `button` | CVA-based with variants (default, outline, secondary, ghost, destructive, link) and sizes |
-| `input` | Form input with aria-invalid states |
-| `textarea` | Multi-line text input |
-| `card` | Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, CardAction |
-| `label` | Form label |
-| `field` | Form field layout: Field, FieldGroup, FieldLabel, FieldDescription, FieldError |
-| `checkbox` | Checkbox input |
-| `switch` | Toggle switch |
-| `select` | Dropdown select |
-| `dialog` | Modal dialog |
-| `sheet` | Side panel overlay |
-| `popover` | Popover/floating panel |
-| `dropdown-menu` | Context/dropdown menu |
-| `tabs` | Tab navigation |
-| `table` | Data table |
-| `avatar` | User avatar |
-| `badge` | Status badge/tag |
-| `skeleton` | Loading placeholder |
-| `tooltip` | Hover tooltip (requires `TooltipProvider` — already in root layout) |
-| `scroll-area` | Custom scrollbar area |
-| `alert` | Alert/warning banner |
-| `separator` | Visual divider |
-| `sonner` | Toast notifications |
+| Component | Import | Key exports |
+|-----------|--------|------------|
+| alert | `from '@/components/ui/alert'` | Alert, AlertTitle, AlertDescription |
+| avatar | `from '@/components/ui/avatar'` | Avatar, AvatarImage, AvatarFallback |
+| badge | `from '@/components/ui/badge'` | Badge |
+| button | `from '@/components/ui/button'` | Button (variants: default, outline, secondary, ghost, destructive, link; sizes: default, xs, sm, lg, icon) |
+| card | `from '@/components/ui/card'` | Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, CardAction |
+| checkbox | `from '@/components/ui/checkbox'` | Checkbox |
+| dialog | `from '@/components/ui/dialog'` | Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose |
+| dropdown-menu | `from '@/components/ui/dropdown-menu'` | DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel, DropdownMenuGroup |
+| field | `from '@/components/ui/field'` | Field, FieldGroup, FieldLabel, FieldDescription, FieldError |
+| input | `from '@/components/ui/input'` | Input |
+| label | `from '@/components/ui/label'` | Label |
+| popover | `from '@/components/ui/popover'` | Popover, PopoverTrigger, PopoverContent |
+| scroll-area | `from '@/components/ui/scroll-area'` | ScrollArea, ScrollBar |
+| select | `from '@/components/ui/select'` | Select, SelectTrigger, SelectValue, SelectContent, SelectItem, SelectGroup, SelectLabel |
+| separator | `from '@/components/ui/separator'` | Separator |
+| sheet | `from '@/components/ui/sheet'` | Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetClose |
+| skeleton | `from '@/components/ui/skeleton'` | Skeleton |
+| switch | `from '@/components/ui/switch'` | Switch |
+| table | `from '@/components/ui/table'` | Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableFooter, TableCaption |
+| tabs | `from '@/components/ui/tabs'` | Tabs, TabsList, TabsTrigger, TabsContent |
+| textarea | `from '@/components/ui/textarea'` | Textarea |
+| tooltip | `from '@/components/ui/tooltip'` | Tooltip, TooltipTrigger, TooltipContent (requires TooltipProvider — already in root layout) |
+| sonner | `from 'sonner'` | toast (Toaster already mounted in main.tsx) |
+
+Add more: `cd apps/frontend && bunx shadcn@latest add <component-name>`
 
 **Blocks (block/):**
 

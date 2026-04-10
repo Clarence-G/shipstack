@@ -7,3 +7,4 @@ drizzle/
 !apps/backend/drizzle/
 .DS_Store
 pgdata/
+.vite/

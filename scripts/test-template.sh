@@ -80,11 +80,14 @@ cd apps/backend && bun test 2>&1 || true
 cd "$TMP_DIR"
 
 echo ""
+echo "==> Creating .env from .env.example ..."
+cp .env.example .env
+
+echo ""
 echo "Template test directory: $TMP_DIR"
 echo ""
 echo "Want to try starting dev servers? Run:"
 echo "  cd $TMP_DIR"
-echo "  cp .env.example apps/backend/.env"
 echo "  bun run dev"
 
 if [ "$KEEP" -eq 0 ]; then

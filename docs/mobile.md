@@ -15,6 +15,9 @@ System prompt for coding agents working on `apps/mobile`.
 | API Client | oRPC + `@myapp/contract` (contract-first, type-safe) |
 | Auth | Better Auth with `@better-auth/expo` (SecureStore sessions) |
 | Data Fetching | TanStack Query |
+| Toasts | sonner-native (same API as frontend's sonner) |
+| Date Picker | `@react-native-community/datetimepicker` via `DateInput` component |
+| Bottom Sheet | `@gorhom/bottom-sheet` via `Sheet` component |
 | State | React state + TanStack Query cache (no external state lib) |
 
 ## Project Structure
@@ -28,7 +31,7 @@ apps/mobile/
 └── src/
     ├── global.css               # Tailwind v4 imports + OKLCH theme variables
     ├── app/                     # Expo Router file routes
-    │   ├── _layout.tsx          # Root: ThemeProvider + QueryProvider + PortalHost
+    │   ├── _layout.tsx          # Root: ThemeProvider + QueryProvider + SheetProvider + Toaster + PortalHost
     │   ├── index.tsx            # Home (auth guard → redirect to login)
     │   └── auth/
     │       ├── _layout.tsx      # Auth group layout (Stack)
@@ -43,11 +46,13 @@ apps/mobile/
     │   │   ├── native-only-animated-view, popover, progress
     │   │   ├── radio-group, select, separator, skeleton
     │   │   ├── switch, tabs, text, textarea
-    │   │   └── toggle, toggle-group, tooltip
+    │   │   └── toggle, toggle-group, tooltip, date-input, sheet, field
     │   └── block/               # Block-level composed components
     │       ├── sign-in-form.tsx  # Login form (Card + Input + Button)
     │       ├── sign-up-form.tsx  # Register form (Card + Input + Button)
     │       └── user-menu.tsx     # User avatar popover menu (RN Reusables CLI)
+    ├── hooks/
+    │   └── use-upload.ts        # File upload hook (presigned URL + S3)
     └── lib/
         ├── orpc.ts              # oRPC client + TanStack Query utils
         ├── auth-client.ts       # Better Auth client (Expo SecureStore)
@@ -113,6 +118,90 @@ export default function SettingsLayout() {
 }
 ```
 
+### Adding Tab Navigation
+
+The scaffold uses a flat `app/index.tsx` as the home screen. If you add tab navigation later, be aware of a route conflict:
+
+**The problem:** `app/index.tsx` and `app/(tabs)/index.tsx` both resolve to `/`. Expo Router groups like `(tabs)` don't add path segments, so both files claim the same route — behavior is unpredictable.
+
+**Migration steps:**
+
+1. Create the tab layout:
+
+```tsx
+// src/app/(tabs)/_layout.tsx
+import { Tabs } from 'expo-router'
+
+export default function TabLayout() {
+  return (
+    <Tabs>
+      <Tabs.Screen name="explore" options={{ title: 'Explore' }} />
+      <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
+    </Tabs>
+  )
+}
+```
+
+2. Move tab screens into `(tabs)/`:
+
+```
+src/app/(tabs)/explore.tsx    → /explore (default tab)
+src/app/(tabs)/profile.tsx    → /profile
+```
+
+3. Convert `app/index.tsx` to a redirect:
+
+```tsx
+// src/app/index.tsx — only redirects, no UI
+import { Redirect } from 'expo-router'
+export default function Index() {
+  return <Redirect href="/explore" />
+}
+```
+
+4. Update root `_layout.tsx`:
+
+```tsx
+<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+```
+
+### Configuring Screen Headers
+
+`Stack.Screen name` only matches **direct child** route segments. It does not support paths with slashes.
+
+```tsx
+// WRONG — name with slash does nothing
+<Stack.Screen name="listings/[id]" options={{ title: 'Details' }} />
+
+// CORRECT — configure inside the screen file itself
+// src/app/listings/[id].tsx
+import { Stack } from 'expo-router'
+
+export default function ListingDetail() {
+  return (
+    <>
+      <Stack.Screen options={{ title: 'Details', headerBackTitle: 'Back' }} />
+      {/* screen content */}
+    </>
+  )
+}
+```
+
+Alternatively, add a nested `_layout.tsx` in the directory:
+
+```tsx
+// src/app/listings/_layout.tsx
+import { Stack } from 'expo-router'
+
+export default function ListingsLayout() {
+  return (
+    <Stack>
+      <Stack.Screen name="[id]" options={{ title: 'Details' }} />
+    </Stack>
+  )
+}
+```
+
 ## Styling (Uniwind / Tailwind CSS v4)
 
 Uniwind enables `className` on all React Native components. Use Tailwind utility classes directly:
@@ -163,6 +252,38 @@ const { theme } = useUniwind()  // 'light' | 'dark'
 ## UI Components (React Native Reusables)
 
 Components live in `src/components/ui/`. They are source files you own (not a library), copied by the CLI.
+
+### Installed Components — Quick Reference
+
+**MANDATORY:** Use these components for ALL UI. Never hand-write Tailwind equivalents. If a component you need is not listed, add it via `npx @react-native-reusables/cli@latest add <name> --yes`.
+
+**Common components (with imports):**
+
+| Component | Import | Key exports |
+|-----------|--------|------------|
+| button | `from '@/components/ui/button'` | Button (variants: default, destructive, outline, secondary, ghost, link) |
+| text | `from '@/components/ui/text'` | Text (variants: default, h1-h4, p, lead, large, small, muted, blockquote, code) — MUST use this inside RN Reusables components, not RN Text |
+| input | `from '@/components/ui/input'` | Input |
+| label | `from '@/components/ui/label'` | Label |
+| card | `from '@/components/ui/card'` | Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter |
+| dialog | `from '@/components/ui/dialog'` | Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose |
+| alert-dialog | `from '@/components/ui/alert-dialog'` | AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogAction, AlertDialogCancel |
+| dropdown-menu | `from '@/components/ui/dropdown-menu'` | DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem |
+| select | `from '@/components/ui/select'` | Select, SelectTrigger, SelectValue, SelectContent, SelectItem |
+| checkbox | `from '@/components/ui/checkbox'` | Checkbox |
+| switch | `from '@/components/ui/switch'` | Switch |
+| tabs | `from '@/components/ui/tabs'` | Tabs, TabsList, TabsTrigger, TabsContent |
+| avatar | `from '@/components/ui/avatar'` | Avatar, AvatarImage, AvatarFallback |
+| badge | `from '@/components/ui/badge'` | Badge |
+| separator | `from '@/components/ui/separator'` | Separator |
+| skeleton | `from '@/components/ui/skeleton'` | Skeleton |
+| progress | `from '@/components/ui/progress'` | Progress |
+| tooltip | `from '@/components/ui/tooltip'` | Tooltip, TooltipTrigger, TooltipContent |
+
+**Also installed (same import pattern `from '@/components/ui/<name>'`):**
+accordion, alert, aspect-ratio, collapsible, context-menu, hover-card, icon, menubar, native-only-animated-view, popover, radio-group, textarea, toggle, toggle-group
+
+Add more: `cd apps/mobile && npx @react-native-reusables/cli@latest add <name> --yes`
 
 ### Using existing components
 
@@ -395,7 +516,7 @@ Example: adding a Todo list screen.
 ```tsx
 // src/app/todos.tsx
 import { useEffect } from 'react'
-import { View, FlatList, Alert, ActivityIndicator } from 'react-native'
+import { View, FlatList, ActivityIndicator } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSession } from '@/lib/auth-client'
@@ -491,7 +612,7 @@ Follow the existing pattern in `src/components/sign-in-form.tsx`:
 />
 ```
 
-Page handles auth logic + navigation + error display (`Alert.alert`). Form component handles UI + field state only.
+Page handles auth logic + navigation + error display (`toast.error()`). Form component handles UI + field state only.
 
 ## Keyboard Handling
 
@@ -511,6 +632,192 @@ Wrap form screens with:
   </ScrollView>
 </KeyboardAvoidingView>
 ```
+
+## Toasts (sonner-native)
+
+Uses `sonner-native` — same API as the frontend's `sonner`. The `<Toaster />` and global mutation error handler are already configured in the root `_layout.tsx`.
+
+```ts
+import { toast } from 'sonner-native'
+
+toast.success('Saved!')
+toast.error('Something went wrong')
+toast.info('FYI...')
+toast.warning('Watch out')
+toast('Plain message')
+```
+
+**In form error handlers** — prefer `toast.error` over `Alert.alert` for non-blocking feedback:
+
+```ts
+try {
+  await signIn.email({ email, password })
+  router.replace('/')
+} catch (err) {
+  toast.error(err instanceof Error ? err.message : 'Login failed')
+}
+```
+
+Reserve `Alert.alert()` for destructive confirmations (delete account, discard changes) where the user must explicitly choose.
+
+**Global mutation errors** are auto-toasted via the QueryClient config in `_layout.tsx`. If you add a local `onError`, both fire — handle known errors locally and let unknown ones fall through.
+
+## Date Picker
+
+React Native has no `<input type="date">`. Use the `DateInput` component from `@/components/ui/date-input`:
+
+```tsx
+import { useState } from 'react'
+import { DateInput } from '@/components/ui/date-input'
+
+const [date, setDate] = useState<Date>()
+
+<DateInput
+  value={date}
+  onChange={setDate}
+  placeholder="Select date"
+  mode="date"                    // 'date' | 'time' | 'datetime'
+  minimumDate={new Date()}       // optional
+  maximumDate={new Date(2030, 0, 1)}  // optional
+/>
+```
+
+`DateInput` opens the native platform picker (iOS spinner / Android calendar) and renders like `<Input>` when closed.
+
+| Web | Mobile |
+|-----|--------|
+| `<input type="date">` | `<DateInput mode="date">` |
+| `<input type="time">` | `<DateInput mode="time">` |
+| `<input type="datetime-local">` | `<DateInput mode="datetime">` |
+
+## File Upload
+
+The upload hook exists at `src/hooks/use-upload.ts`. It handles expo-image-picker assets with the same 3-step flow as the frontend (presigned URL → S3 upload → confirm).
+
+```tsx
+import { useUpload } from '@/hooks/use-upload'
+import * as ImagePicker from 'expo-image-picker'
+
+const { upload, isUploading, progress, error } = useUpload()
+
+// Pick and upload an image
+const result = await ImagePicker.launchImageLibraryAsync({
+  mediaTypes: ImagePicker.MediaTypeOptions.Images,
+  quality: 0.8,
+})
+
+if (!result.canceled) {
+  const asset = result.assets[0]
+  const file = await upload({
+    uri: asset.uri,
+    fileName: asset.fileName ?? undefined,
+    mimeType: asset.mimeType ?? undefined,
+  })
+  // file = { id, fileKey, filename, contentType, url, createdAt }
+}
+```
+
+| Aspect | Frontend | Mobile |
+|--------|----------|--------|
+| Input type | `File` object from `<input>` | `{ uri, fileName, mimeType }` from expo-image-picker |
+| Upload transport | `XMLHttpRequest` with progress events | `fetch()` with blob conversion |
+| Progress tracking | Fine-grained via xhr.upload | Coarse: 10% → 80% → 100% |
+
+## Bottom Sheet
+
+Uses `@gorhom/bottom-sheet` via a wrapper at `@/components/ui/sheet`. The `<SheetProvider>` is already in the root `_layout.tsx`.
+
+```tsx
+import { useSheet, Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
+import { Button } from '@/components/ui/button'
+import { Text } from '@/components/ui/text'
+
+function FiltersScreen() {
+  const { ref, open, close } = useSheet()
+
+  return (
+    <>
+      <Button onPress={open}><Text>Open Filters</Text></Button>
+
+      <Sheet sheetRef={ref}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Filters</SheetTitle>
+            <SheetDescription>Narrow down your results</SheetDescription>
+          </SheetHeader>
+
+          {/* filter controls */}
+
+          <SheetFooter>
+            <Button onPress={close}><Text>Apply</Text></Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+    </>
+  )
+}
+```
+
+**With snap points** (for fixed-height sheets):
+
+```tsx
+<Sheet sheetRef={ref} snapPoints={['25%', '50%']} enableDynamicSizing={false}>
+  <SheetContent>{/* content */}</SheetContent>
+</Sheet>
+```
+
+**Scrollable content** — use `SheetScrollContent` instead of `SheetContent`:
+
+```tsx
+<Sheet sheetRef={ref} snapPoints={['50%', '90%']} enableDynamicSizing={false}>
+  <SheetScrollContent>
+    {/* long list of items */}
+  </SheetScrollContent>
+</Sheet>
+```
+
+| Web (Frontend) | Mobile |
+|----------------|--------|
+| `<Sheet>` + `<SheetTrigger>` | `useSheet()` → `open()` / `close()` |
+| `<SheetContent side="bottom">` | `<Sheet sheetRef={ref}>` + `<SheetContent>` |
+| CSS animation | Native gesture-driven animation |
+
+## Form Field Layout
+
+Use `Field` components from `@/components/ui/field` for consistent form layouts. Mirrors the frontend's `Field` pattern:
+
+```tsx
+import { Field, FieldGroup, FieldLabel, FieldDescription, FieldError } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+
+<FieldGroup>
+  <Field>
+    <FieldLabel nativeID="email">Email</FieldLabel>
+    <Input aria-labelledby="email" value={email} onChangeText={setEmail} />
+    <FieldDescription>We won't share your email.</FieldDescription>
+  </Field>
+
+  <Field>
+    <FieldLabel nativeID="password">Password</FieldLabel>
+    <Input aria-labelledby="password" secureTextEntry value={password} onChangeText={setPassword} />
+    {error && <FieldError>{error}</FieldError>}
+  </Field>
+</FieldGroup>
+```
+
+**With errors array** (from Zod validation):
+
+```tsx
+<FieldError errors={[{ message: 'Email is required' }, { message: 'Invalid format' }]} />
+```
+
+| Component | Purpose |
+|-----------|---------|
+| `FieldGroup` | Wrapper for a group of fields (vertical gap-5) |
+| `Field` | Single field container (vertical gap-2) |
+| `FieldLabel` | Label text, pass `nativeID` for accessibility linking |
+| `FieldDescription` | Helper text below input (muted color) |
+| `FieldError` | Error text (destructive color), accepts `children` or `errors` array |
 
 ## Environment Variables
 
@@ -539,7 +846,7 @@ Access: `process.env.EXPO_PUBLIC_API_URL`
 | Router | react-router-dom | expo-router (file-based) |
 | Auth storage | Browser cookies | expo-secure-store |
 | oRPC auth | `credentials: 'include'` | `headers: { cookie: getCookie() }` |
-| Error display | `toast` (sonner) | `Alert.alert()` |
+| Error display | `toast` (sonner) | `toast` (sonner-native) |
 | Hover states | `hover:` | `active:` (no hover on touch) |
 | Text inheritance | CSS cascade | Must style each `Text` directly |
 | Scroll container | Native scroll | `ScrollView` / `FlatList` with `contentContainerClassName` |
@@ -640,6 +947,10 @@ Some components render differently on web vs native:
 | `<div>` | `<View>` | |
 | `<span>` / `<p>` | `<Text>` from ui/text | Must use ui Text inside Reusables components |
 | `<input>` | `<TextInput>` | Use `<Input>` component for styled version |
+| `<input type="date">` | `<DateInput>` | From `@/components/ui/date-input` |
+| `<Sheet>` | `useSheet()` + `<Sheet>` | From `@/components/ui/sheet`, uses `@gorhom/bottom-sheet` |
+| `<Field>` / `<FieldGroup>` | Same names | From `@/components/ui/field`, mirrors frontend pattern |
+| `toast()` (sonner) | `toast()` (sonner-native) | Same API: `toast.success()`, `toast.error()` |
 | `asChild` + `<Link>` | Direct `onPress` + `router.push()` | RN Reusables supports `asChild` on some components |
 | `<TooltipProvider>` | Not needed | Mobile has no global tooltip provider |
 | `showCloseButton` (Dialog) | Auto-rendered close button | Mobile Dialog always shows close icon |

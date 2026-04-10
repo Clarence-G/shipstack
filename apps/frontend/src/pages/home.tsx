@@ -10,7 +10,7 @@ export function HomePage() {
     if (!isPending && !session) {
       navigate('/auth/login')
     }
-  }, [session, isPending, navigate])
+  }, [session, isPending])
 
   if (isPending) {
     return <div>Loading...</div>

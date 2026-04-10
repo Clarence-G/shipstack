@@ -11,7 +11,7 @@ export default function HomeScreen() {
     if (!isPending && !session) {
       router.replace('/auth/login')
     }
-  }, [session, isPending, router.replace])
+  }, [session, isPending])
 
   if (isPending) {
     return (
