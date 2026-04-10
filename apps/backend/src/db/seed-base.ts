@@ -8,6 +8,6 @@ import type { PgDatabase } from 'drizzle-orm/pg-core'
  * roles, categories, settings, etc.
  */
 // biome-ignore lint/suspicious/noExplicitAny: accepts any Drizzle PG instance regardless of schema type
-export async function seedBase(_db: PgDatabase<any>) {
+export async function seedBase(_db: PgDatabase<any, any, any>) {
   // No enum/config tables yet. Add base data here as schema grows.
 }

@@ -29,7 +29,6 @@ rsync -a \
   --exclude='.DS_Store' \
   --exclude='bun.lock' \
   --exclude='.git' \
-  --exclude='.agents' \
   --exclude='pgdata' \
   --exclude='docs/plans' \
   "$REPO_ROOT/" "$TMP_DIR/"

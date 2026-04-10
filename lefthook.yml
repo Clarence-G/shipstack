@@ -5,3 +5,9 @@ pre-commit:
       glob: "*.{ts,tsx,js,jsx,json,css}"
       run: bunx biome check --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
       stage_fixed: true
+    - name: typecheck
+      glob: "*.{ts,tsx}"
+      run: >
+        cd apps/backend && bunx tsc --noEmit &&
+        cd ../frontend && bunx tsc --noEmit &&
+        cd ../../packages/contract && bunx tsc --noEmit

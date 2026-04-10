@@ -62,7 +62,7 @@ export const chatMessage = pgTable('chat_message', {
   userId: text('user_id')
     .notNull()
     .references(() => user.id),
-  role: text('role').notNull(),
+  role: text('role').notNull().$type<'user' | 'assistant' | 'system'>(),
   content: text('content').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
@@ -78,6 +78,6 @@ export const file = pgTable('file', {
   filename: text('filename').notNull(),
   contentType: text('content_type').notNull(),
   size: text('size'), // Populated after upload confirmation
-  status: text('status').notNull().default('pending'), // pending | confirmed
+  status: text('status').notNull().default('pending').$type<'pending' | 'confirmed'>(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })

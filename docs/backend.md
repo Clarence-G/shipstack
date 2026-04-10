@@ -595,6 +595,14 @@ Uses `bun test` with PGLite in-memory databases. Each test file gets a fresh DB 
 bun run test              # all backend tests
 bun run test:backend      # same (from root)
 cd apps/backend && bun test --watch  # watch mode
+cd apps/backend && bun test src/routers/foo.test.ts  # single file
+```
+
+### Single-file lint
+
+```bash
+bunx biome check apps/backend/src/routers/foo.ts         # check one file
+bunx biome check --write apps/backend/src/routers/foo.ts  # auto-fix one file
 ```
 
 ### Writing a handler test

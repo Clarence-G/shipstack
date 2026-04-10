@@ -128,7 +128,7 @@ This makes it the project's permanent design reference. Future sessions will pic
 | Brand | File | One-liner |
 |-------|------|-----------|
 | Notion | `notion.md` | Warm-neutral minimalism, parchment whites, serif headings, whisper borders |
-| Claude | `claude.md` | Warm terracotta accent, parchment canvas, editorial serif typography |
+| Claude | `claude-anthropic.md` | Warm terracotta accent, parchment canvas, editorial serif typography |
 | Lovable | `lovable.md` | Parchment cream, humanist typography, opacity-only color system |
 | PostHog | `posthog.md` | Earthy warm-green palette, hand-drawn illustrations, hidden orange accent |
 | Intercom | `intercom.md` | Warm off-white editorial, single vibrant Fin Orange accent |

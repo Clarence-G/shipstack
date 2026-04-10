@@ -3,7 +3,15 @@
  * All return plain objects matching Drizzle schema insert types.
  */
 
-export function createTestUser(overrides?: Partial<ReturnType<typeof createTestUser>>) {
+export function createTestUser(overrides?: {
+  id?: string
+  name?: string
+  email?: string
+  emailVerified?: boolean
+  image?: string | null
+  createdAt?: Date
+  updatedAt?: Date
+}) {
   return {
     id: crypto.randomUUID(),
     name: 'Test User',
@@ -18,7 +26,16 @@ export function createTestUser(overrides?: Partial<ReturnType<typeof createTestU
 
 export function createTestSession(
   userId: string,
-  overrides?: Partial<ReturnType<typeof createTestSession>>,
+  overrides?: {
+    id?: string
+    token?: string
+    expiresAt?: Date
+    userId?: string
+    ipAddress?: string
+    userAgent?: string
+    createdAt?: Date
+    updatedAt?: Date
+  },
 ) {
   return {
     id: crypto.randomUUID(),

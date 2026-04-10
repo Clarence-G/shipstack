@@ -134,6 +134,8 @@ Know the column names before inserting. Tables are defined in `src/db/schema.ts`
 
 ### Insert pattern
 
+**FK constraints are enforced.** PGLite enforces foreign key constraints. When inserting rows that reference another table (e.g., `listing.hostId` → `user.id`), the referenced row must already exist. Use `createTestUser()` from fixtures and insert via `env.db.insert(user)` before inserting FK-dependent rows.
+
 ```ts
 import { chatMessage, file } from '../db/schema'
 

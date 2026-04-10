@@ -67,3 +67,6 @@ These apply everywhere — know them before writing any code:
 | `bun run format` | Format all files with Biome |
 | `bun run test` | Run all backend tests |
 | `bun run test:backend` | Run all backend tests (explicit) |
+| `cd apps/backend && bun test src/routers/foo.test.ts` | Run a single test file |
+| `bunx biome check apps/backend/src/routers/foo.ts` | Lint a single file |
+| `bunx biome check --write apps/backend/src/routers/foo.ts` | Auto-fix a single file |
