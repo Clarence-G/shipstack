@@ -1,5 +1,10 @@
 /**
- * TypeCheck Daemon — Language Service server over Unix socket
+ * TypeCheck Daemon — ts.createProgram server over Unix socket
+ *
+ * Both single-file and project checks use ts.createProgram (identical to
+ * tsc --noEmit), guaranteeing correctness for complex generics like oRPC's
+ * Implementer<T>. Single-file requests run a full project check and filter
+ * results to the target file.
  *
  * Startup flow (concurrent-safe):
  *   1. Try to create lockfile atomically via O_EXCL (only one process wins)
@@ -9,9 +14,10 @@
  *
  * Protocol (newline-delimited JSON over Unix socket):
  *   Request:  { "file": "/abs/path/to/foo.ts" }
+ *           | { "project": "/abs/path/to/workspace" }
  *   Response: { "ok": true }
- *              | { "ok": false, "errors": [...] }
- *              | { "ok": false, "fatal": "error message" }
+ *           | { "ok": false, "errors": [{ text, file, line, col, code }] }
+ *           | { "ok": false, "fatal": "error message" }
  *
  * The daemon exits automatically after IDLE_TIMEOUT_MS of no requests.
  */
@@ -22,96 +28,48 @@ import * as path from 'path'
 import * as fs from 'fs'
 import { DAEMON_SOCKET_PATH, DAEMON_LOCK_PATH, DAEMON_READY_PATH } from './typecheck-constants'
 
-// ── Constants ──────────────────────────────────────────────────────────────
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
 
-// ── Language Service cache (one per tsconfig.json) ──────────────────────────
+// ── Per-project state (host + builder cache) ──────────────────────────────────
 
-interface ServiceEntry {
-  service: ts.LanguageService
-  host: MutableLanguageServiceHost
-  configPath: string
+interface ProjectState {
+  host: ts.CompilerHost
+  sfCache: Map<string, { mtime: number; sf: ts.SourceFile }>
+  builder: ts.SemanticDiagnosticsBuilderProgram | undefined
 }
 
-const serviceCache = new Map<string, ServiceEntry>()
+const projectStates = new Map<string, ProjectState>()
 
-class MutableLanguageServiceHost implements ts.LanguageServiceHost {
-  private fileVersions = new Map<string, number>()
-  private fileContents = new Map<string, string>()
+function getOrCreateState(configPath: string): ProjectState {
+  const existing = projectStates.get(configPath)
+  if (existing) return existing
 
-  constructor(
-    private compilerOptions: ts.CompilerOptions,
-    private rootFileNames: string[],
-  ) {
-    for (const f of rootFileNames) {
-      this.fileVersions.set(f, 0)
+  const host = ts.createCompilerHost({})
+  const projectRoot = path.dirname(configPath)
+  host.getCurrentDirectory = () => projectRoot
+
+  // mtime-based SourceFile cache: avoid re-parsing unchanged files on each check
+  const sfCache = new Map<string, { mtime: number; sf: ts.SourceFile }>()
+  const _getSF = host.getSourceFile.bind(host)
+  host.getSourceFile = (fileName, langVersion, onError, shouldCreateNew) => {
+    try {
+      const mtime = fs.statSync(fileName).mtimeMs
+      const cached = sfCache.get(fileName)
+      if (cached && cached.mtime === mtime && !shouldCreateNew) return cached.sf
+      // Re-read from disk (file changed or first access)
+      const content = fs.readFileSync(fileName, 'utf-8')
+      const sf = ts.createSourceFile(fileName, content, langVersion, true)
+      sf.version = String(mtime) // required by SemanticDiagnosticsBuilderProgram
+      sfCache.set(fileName, { mtime, sf })
+      return sf
+    } catch {
+      return _getSF(fileName, langVersion, onError, shouldCreateNew)
     }
   }
 
-  // Bump version so Language Service re-checks this file on next call
-  updateFile(filePath: string): void {
-    const current = this.fileVersions.get(filePath) ?? 0
-    this.fileVersions.set(filePath, current + 1)
-    this.fileContents.delete(filePath) // force re-read from disk
-  }
-
-  ensureFile(filePath: string): void {
-    if (!this.fileVersions.has(filePath)) {
-      this.fileVersions.set(filePath, 0)
-      this.rootFileNames.push(filePath)
-    }
-  }
-
-  getCompilationSettings() { return this.compilerOptions }
-  getScriptFileNames() { return this.rootFileNames }
-  getScriptVersion(fileName: string) { return String(this.fileVersions.get(fileName) ?? 0) }
-
-  getScriptSnapshot(fileName: string): ts.IScriptSnapshot | undefined {
-    let content = this.fileContents.get(fileName)
-    if (content === undefined) {
-      try {
-        content = fs.readFileSync(fileName, 'utf-8')
-        this.fileContents.set(fileName, content)
-      } catch {
-        return undefined
-      }
-    }
-    return ts.ScriptSnapshot.fromString(content)
-  }
-
-  getCurrentDirectory() { return process.cwd() }
-  getDefaultLibFileName(options: ts.CompilerOptions) { return ts.getDefaultLibFilePath(options) }
-  fileExists(fileName: string) { return ts.sys.fileExists(fileName) }
-  readFile(fileName: string) { return ts.sys.readFile(fileName) }
-  readDirectory(p: string, ext?: readonly string[], excl?: readonly string[], incl?: readonly string[], depth?: number) {
-    return ts.sys.readDirectory(p, ext, excl, incl, depth)
-  }
-  directoryExists(dirName: string) { return ts.sys.directoryExists(dirName) }
-  getDirectories(dirPath: string) { return ts.sys.getDirectories(dirPath) }
-}
-
-function getOrCreateService(filePath: string): ServiceEntry | { fatal: string } {
-  const configPath = ts.findConfigFile(path.dirname(filePath), ts.sys.fileExists, 'tsconfig.json')
-  if (!configPath) return { fatal: `No tsconfig.json found for ${filePath}` }
-
-  const cached = serviceCache.get(configPath)
-  if (cached) {
-    cached.host.ensureFile(filePath)
-    cached.host.updateFile(filePath)
-    return cached
-  }
-
-  const configFile = ts.readConfigFile(configPath, ts.sys.readFile)
-  if (configFile.error) {
-    return { fatal: ts.flattenDiagnosticMessageText(configFile.error.messageText, '\n') }
-  }
-
-  const parsed = ts.parseJsonConfigFileContent(configFile.config, ts.sys, path.dirname(configPath))
-  const host = new MutableLanguageServiceHost(parsed.options, [filePath])
-  const service = ts.createLanguageService(host, ts.createDocumentRegistry())
-  const entry: ServiceEntry = { service, host, configPath }
-  serviceCache.set(configPath, entry)
-  return entry
+  const state: ProjectState = { host, sfCache, builder: undefined }
+  projectStates.set(configPath, state)
+  return state
 }
 
 // ── Diagnostic serialization ──────────────────────────────────────────────────
@@ -146,55 +104,67 @@ function toDiagnosticRecord(d: ts.Diagnostic): DiagnosticRecord {
 type DaemonRequest = { file: string } | { project: string }
 interface CheckResponse { ok: boolean; errors?: DiagnosticRecord[]; fatal?: string }
 
-function handleFileCheck(filePath: string): CheckResponse {
-  const entry = getOrCreateService(filePath)
-  if ('fatal' in entry) return { ok: false, fatal: entry.fatal }
-
-  const { service } = entry
-  const diagnostics = [
-    ...service.getSyntacticDiagnostics(filePath),
-    ...service.getSemanticDiagnostics(filePath),
-  ]
-
-  if (diagnostics.length === 0) return { ok: true }
-  return { ok: false, errors: diagnostics.map(toDiagnosticRecord) }
-}
-
-function handleProjectCheck(projectDir: string): CheckResponse {
-  const configPath = ts.findConfigFile(projectDir, ts.sys.fileExists, 'tsconfig.json')
-  if (!configPath) return { ok: false, fatal: `No tsconfig.json found in ${projectDir}` }
-
+function runProjectCheck(configPath: string): CheckResponse {
   const configFile = ts.readConfigFile(configPath, ts.sys.readFile)
   if (configFile.error) {
     return { ok: false, fatal: ts.flattenDiagnosticMessageText(configFile.error.messageText, '\n') }
   }
 
-  const parsed = ts.parseJsonConfigFileContent(configFile.config, ts.sys, path.dirname(configPath))
-  const projectFiles = parsed.fileNames.filter(f => !f.includes('/node_modules/'))
+  const projectRoot = path.dirname(configPath)
+  const parsed = ts.parseJsonConfigFileContent(configFile.config, ts.sys, projectRoot)
 
-  // Ensure all project files are registered and marked for re-read
-  // (node_modules .d.ts stay cached — only source files get bumped)
-  let entry = serviceCache.get(configPath)
-  if (!entry) {
-    const host = new MutableLanguageServiceHost(parsed.options, [...projectFiles])
-    const service = ts.createLanguageService(host, ts.createDocumentRegistry())
-    entry = { service, host, configPath }
-    serviceCache.set(configPath, entry)
-  } else {
-    for (const f of projectFiles) {
-      entry.host.ensureFile(f)
-      entry.host.updateFile(f) // bump version so TS re-reads source file from disk
+  // Reuse or create per-project state (host + builder + sfCache)
+  const state = getOrCreateState(configPath)
+  // Refresh compiler options from tsconfig (handles tsconfig changes)
+  state.host.getCompilationSettings = () => parsed.options
+
+  // SemanticDiagnosticsBuilderProgram:
+  //   cold: checks all files, caches per-file diagnostics
+  //   warm (no changes): getSemanticDiagnosticsOfNextAffectedFile returns immediately
+  //   warm (file changed): only affected files re-checked
+  const builder = ts.createSemanticDiagnosticsBuilderProgram(
+    parsed.fileNames, parsed.options, state.host, state.builder,
+  )
+  state.builder = builder
+
+  const diagnostics: ts.Diagnostic[] = []
+  let affected = builder.getSemanticDiagnosticsOfNextAffectedFile()
+  while (affected !== undefined) {
+    for (const d of affected.result) {
+      if (!d.file?.fileName.includes('/node_modules/')) diagnostics.push(d)
+    }
+    affected = builder.getSemanticDiagnosticsOfNextAffectedFile()
+  }
+
+  // Syntactic diagnostics (separate pass, always fast)
+  for (const sf of builder.getProgram().getSourceFiles()) {
+    if (sf.fileName.includes('/node_modules/')) continue
+    for (const d of builder.getProgram().getSyntacticDiagnostics(sf)) {
+      diagnostics.push(d)
     }
   }
 
-  const { service } = entry
-  const allErrors = projectFiles.flatMap(f => [
-    ...service.getSyntacticDiagnostics(f),
-    ...service.getSemanticDiagnostics(f),
-  ]).map(toDiagnosticRecord)
+  if (diagnostics.length === 0) return { ok: true }
+  return { ok: false, errors: diagnostics.map(toDiagnosticRecord) }
+}
 
-  if (allErrors.length === 0) return { ok: true }
-  return { ok: false, errors: allErrors }
+function handleFileCheck(filePath: string): CheckResponse {
+  // Run full project check (ts.createProgram) then filter to target file.
+  // This guarantees accuracy for complex mapped types (e.g. oRPC Implementer<T>).
+  const configPath = ts.findConfigFile(path.dirname(filePath), ts.sys.fileExists, 'tsconfig.json')
+  if (!configPath) return { ok: false, fatal: `No tsconfig.json found for ${filePath}` }
+
+  const result = runProjectCheck(configPath)
+  if (result.ok || result.fatal) return result
+
+  const fileErrors = (result.errors ?? []).filter(e => e.file === filePath)
+  return fileErrors.length === 0 ? { ok: true } : { ok: false, errors: fileErrors }
+}
+
+function handleProjectCheck(projectDir: string): CheckResponse {
+  const configPath = ts.findConfigFile(projectDir, ts.sys.fileExists, 'tsconfig.json')
+  if (!configPath) return { ok: false, fatal: `No tsconfig.json found in ${projectDir}` }
+  return runProjectCheck(configPath)
 }
 
 function handleRequest(req: DaemonRequest): CheckResponse {
@@ -251,13 +221,11 @@ function startServer() {
     socket.on('error', () => { /* client disconnected early */ })
   })
 
-  // Remove stale socket file from previous crash
   try { fs.unlinkSync(DAEMON_SOCKET_PATH) } catch { /* fine */ }
   try { fs.unlinkSync(DAEMON_READY_PATH) } catch { /* fine */ }
 
   server.listen(DAEMON_SOCKET_PATH, () => {
     resetIdleTimer(server)
-    // Write ready-file last — client only proceeds once this exists
     fs.writeFileSync(DAEMON_READY_PATH, String(process.pid))
   })
 
@@ -275,65 +243,44 @@ function startServer() {
 // ── Concurrent-safe startup ───────────────────────────────────────────────────
 
 function isPidAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0) // signal 0 = existence check, no actual signal
-    return true
-  } catch {
-    return false
-  }
+  try { process.kill(pid, 0); return true } catch { return false }
 }
 
 function readLockPid(): number | null {
   try {
-    const content = fs.readFileSync(DAEMON_LOCK_PATH, 'utf-8').trim()
-    const pid = parseInt(content, 10)
+    const pid = parseInt(fs.readFileSync(DAEMON_LOCK_PATH, 'utf-8').trim(), 10)
     return isNaN(pid) ? null : pid
-  } catch {
-    return null
-  }
+  } catch { return null }
 }
 
 function cleanStaleLockIfDead(): boolean {
   const pid = readLockPid()
   if (pid === null || !isPidAlive(pid)) {
-    // Stale lock — clean up so we can retry
-    try { fs.unlinkSync(DAEMON_LOCK_PATH) } catch { /* race: someone else cleaned it */ }
+    try { fs.unlinkSync(DAEMON_LOCK_PATH) } catch { /* race */ }
     try { fs.unlinkSync(DAEMON_SOCKET_PATH) } catch { /* fine */ }
     try { fs.unlinkSync(DAEMON_READY_PATH) } catch { /* fine */ }
-    return true // cleaned
+    return true
   }
-  return false // owner still alive
+  return false
 }
 
 function tryAcquireLock(): boolean {
   try {
-    // O_EXCL = atomic create-or-fail — only one process wins the race
     const fd = fs.openSync(DAEMON_LOCK_PATH, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL)
     fs.writeSync(fd, String(process.pid))
     fs.closeSync(fd)
     return true
-  } catch {
-    return false
-  }
+  } catch { return false }
 }
 
 function acquireLockWithStalenessCheck(): boolean {
   if (tryAcquireLock()) return true
-
-  // Lock exists — check if owner is still alive
-  if (cleanStaleLockIfDead()) {
-    // Stale lock cleaned — try once more
-    return tryAcquireLock()
-  }
-
-  // Owner alive — another daemon is starting or running
+  if (cleanStaleLockIfDead()) return tryAcquireLock()
   return false
 }
 
 if (acquireLockWithStalenessCheck()) {
   startServer()
 } else {
-  // Another live process holds the lock — daemon already starting/running
-  // Client will poll for socket file and connect
   process.exit(0)
 }
