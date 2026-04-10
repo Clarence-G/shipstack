@@ -7,13 +7,16 @@
     "db:create": "bun run src/db/create.ts",
     "db:seed": "bun run src/db/seed.ts",
     "db:generate": "bunx drizzle-kit generate",
-    "db:migrate": "bunx drizzle-kit migrate"
+    "db:migrate": "bunx drizzle-kit migrate",
+    "test": "bun test",
+    "test:watch": "bun test --watch"
   },
   "dependencies": {
     "@ai-sdk/openai": "latest",
     "@aws-sdk/client-s3": "^3.1022.0",
     "@aws-sdk/s3-request-presigner": "^3.1022.0",
     "@better-auth/expo": "^1.5.6",
+    "@electric-sql/pglite": "^0.4.4",
     "@myapp/contract": "workspace:*",
     "@orpc/openapi": "latest",
     "@orpc/server": "latest",

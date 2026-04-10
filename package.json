@@ -11,6 +11,8 @@
     "db:create": "bun run --filter @myapp/backend db:create",
     "db:seed": "bun run --filter @myapp/backend db:seed",
     "db:migrate": "bun run --filter @myapp/backend db:migrate",
+    "test": "bun run --filter @myapp/backend test",
+    "test:backend": "bun run --filter @myapp/backend test",
     "lint": "bunx biome check .",
     "lint:fix": "bunx biome check --write .",
     "format": "bunx biome format --write .",
