@@ -23,7 +23,6 @@ echo "==> Copying template to $TMP_DIR ..."
 rsync -a \
   --exclude='node_modules' \
   --exclude='dist' \
-  --exclude='.env' \
   --exclude='.env.local' \
   --exclude='*.tsbuildinfo' \
   --exclude='.DS_Store' \
@@ -78,10 +77,6 @@ echo ""
 echo "==> Running backend tests ..."
 cd apps/backend && bun test 2>&1 || true
 cd "$TMP_DIR"
-
-echo ""
-echo "==> Creating .env from .env.example ..."
-cp .env.example .env
 
 echo ""
 echo "Template test directory: $TMP_DIR"
