@@ -32,7 +32,7 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="system">
+      <ThemeProvider defaultTheme="light">
         <QueryClientProvider client={queryClient}>
           <BrowserRouter>
             <App />

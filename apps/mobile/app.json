@@ -3,7 +3,7 @@
     "name": "MyApp Mobile",
     "slug": "myapp-mobile",
     "scheme": "myapp",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "orientation": "default",
     "web": {
       "output": "static"
