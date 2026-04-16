@@ -371,6 +371,143 @@ export function LoginPage() {
 - Page has complex data fetching + multiple visual sections → split into blocks with callback props
 - Component is domain-specific and not page-level → use `biz/` directory
 
+## Icons (Lucide)
+
+Package: `lucide-react`. All icons are named React components exported from the package.
+
+### Import
+
+```tsx
+import { Plus, Trash2, ChevronRight, Search, Settings, X } from 'lucide-react'
+```
+
+Browse all available icons at [lucide.dev](https://lucide.dev/icons).
+
+### Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `size` | `number \| string` | `24` | Width and height in px |
+| `color` | `string` | `"currentColor"` | Stroke color — overrides `className` text color |
+| `strokeWidth` | `number` | `2` | Stroke width |
+| `absoluteStrokeWidth` | `boolean` | `false` | Keep stroke width constant regardless of `size` |
+| `className` | `string` | — | Tailwind classes; use `text-*` to set color via `currentColor` |
+
+### Sizing and color via Tailwind
+
+Prefer `className` for color so icons inherit from their context:
+
+```tsx
+// Color from Tailwind token
+<Plus className="text-primary" size={20} />
+<Trash2 className="text-destructive" size={16} />
+<Settings className="text-muted-foreground" size={18} />
+
+// Explicit color (bypasses currentColor)
+<Plus color="#ff0000" size={20} />
+```
+
+Default size `24` is often too large in dense UI — use `16`–`20` for inline icons.
+
+### Inside a Button
+
+Use `size="icon"` on `Button` and set the icon size to match:
+
+```tsx
+import { Button } from '@/components/ui/button'
+import { Plus, Trash2, MoreHorizontal, X } from 'lucide-react'
+
+// icon — 36px button, 20px icon
+<Button size="icon" onClick={handleAdd}>
+  <Plus size={20} />
+</Button>
+
+// icon-sm — 32px button, 16px icon
+<Button size="icon-sm" variant="ghost">
+  <MoreHorizontal size={16} />
+</Button>
+
+// icon-xs — 24px button, 14px icon
+<Button size="icon-xs" variant="ghost" onClick={handleClose}>
+  <X size={14} />
+</Button>
+
+// Destructive icon action
+<Button size="icon-sm" variant="destructive">
+  <Trash2 size={16} />
+</Button>
+```
+
+Button icon sizes: `icon-xs` / `icon-sm` / `icon` / `icon-lg`.
+
+### Inline with text
+
+Place icon beside text inside a flex container. Match icon size to the surrounding text:
+
+```tsx
+// Leading icon
+<Button>
+  <Plus size={16} />
+  Add Item
+</Button>
+
+// Trailing icon
+<Button variant="outline">
+  Continue
+  <ChevronRight size={16} />
+</Button>
+
+// Standalone label + icon
+<div className="flex items-center gap-2 text-sm text-muted-foreground">
+  <Search size={14} />
+  <span>Search results for...</span>
+</div>
+```
+
+### Stroke width
+
+Default `strokeWidth={2}` works for most cases. Reduce for large display icons, increase for small icons:
+
+```tsx
+// Large decorative icon — thin strokes
+<Settings size={48} strokeWidth={1.5} className="text-muted-foreground" />
+
+// Small icon — slightly thicker for readability
+<AlertCircle size={12} strokeWidth={2.5} className="text-destructive" />
+
+// absoluteStrokeWidth — maintains visual weight at any size
+<Star size={32} absoluteStrokeWidth className="text-primary" />
+```
+
+### Common patterns
+
+```tsx
+// Loading state — hide icon while submitting
+<Button disabled={isPending}>
+  {isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+  {isPending ? 'Saving...' : 'Save'}
+</Button>
+
+// Status indicator
+<Badge variant="destructive" className="gap-1">
+  <AlertCircle size={12} />
+  Error
+</Badge>
+
+// Nav item
+<Link to="/settings" className="flex items-center gap-2 text-sm">
+  <Settings size={16} className="text-muted-foreground" />
+  Settings
+</Link>
+
+// CardAction slot
+<CardAction>
+  <Button size="icon-sm" variant="ghost">
+    <MoreHorizontal size={16} />
+  </Button>
+</CardAction>
+```
+
 ## oRPC Client
 
 The client is in `src/lib/orpc.ts`. Uses browser cookies for auth (`credentials: 'include'`).

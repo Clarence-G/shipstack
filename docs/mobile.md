@@ -384,14 +384,96 @@ Available components (32 files): accordion, alert, alert-dialog, aspect-ratio, a
 
 ### Icons
 
+Package: `lucide-react-native`. All icons are named React components. Under the hood they render SVG via `react-native-svg`.
+
+Browse all available icons at [lucide.dev](https://lucide.dev/icons).
+
+**Import:**
+
 ```tsx
-import { ChevronRight, Plus, Trash2 } from 'lucide-react-native'
+import { Plus, Trash2, ChevronRight, Search, Settings, X } from 'lucide-react-native'
+```
 
+**Props:**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `size` | `number` | `24` | Width and height in dp |
+| `color` | `string` | `"currentColor"` | Stroke color — takes precedence over `className` text color |
+| `strokeWidth` | `number` | `2` | Stroke width |
+| `absoluteStrokeWidth` | `boolean` | `false` | Keep stroke weight constant regardless of `size` |
+| `className` | `string` | — | Uniwind classes; `text-*` sets color via `currentColor` |
+
+**Styling with Tailwind className:**
+
+```tsx
+// Color via Tailwind token (uses currentColor internally)
 <Plus className="text-foreground" size={20} />
+<Trash2 className="text-destructive" size={16} />
+<Settings className="text-muted-foreground" size={18} />
+```
 
-// Inside a Button
-<Button size="icon" variant="ghost">
-  <Trash2 className="text-destructive" size={16} />
+**Explicit `color` prop** overrides `className`:
+
+```tsx
+// Explicit color — bypasses className text color
+<Plus color="#3b82f6" size={20} />
+```
+
+Prefer `className` with semantic tokens so icons auto-adapt to light/dark mode.
+
+**Inside a Button:**
+
+```tsx
+// icon size — ghost variant
+<Button size="icon" variant="ghost" onPress={handleOpen}>
+  <Settings className="text-foreground" size={20} />
+</Button>
+
+// Destructive icon action
+<Button size="icon" variant="destructive" onPress={handleDelete}>
+  <Trash2 size={20} />
+</Button>
+
+// icon-sm
+<Button size="icon-sm" variant="ghost" onPress={handleClose}>
+  <X className="text-muted-foreground" size={16} />
+</Button>
+```
+
+`Button` from RN Reusables requires children to be `Text` from `@/components/ui/text` for labels — but icons do not need `Text`, pass them directly.
+
+**Inline with text** — wrap in a `View` with flex:
+
+```tsx
+<View className="flex-row items-center gap-2">
+  <Search className="text-muted-foreground" size={16} />
+  <Text className="text-sm text-muted-foreground">Search</Text>
+</View>
+```
+
+**Stroke width** — default `2` suits most cases:
+
+```tsx
+// Large display icon — thinner strokes
+<Settings size={48} strokeWidth={1.5} className="text-muted-foreground" />
+
+// absoluteStrokeWidth — consistent visual weight at any size
+<Star size={32} absoluteStrokeWidth className="text-primary" />
+```
+
+**Loading spinner pattern:**
+
+```tsx
+import { Loader2 } from 'lucide-react-native'
+import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated'
+
+// Simple spin via Reanimated (Loader2 + rotate)
+<Button disabled={isPending} onPress={handleSubmit}>
+  {isPending
+    ? <Loader2 size={16} className="text-primary-foreground" />
+    : <Save size={16} className="text-primary-foreground" />}
+  <Text>{isPending ? 'Saving...' : 'Save'}</Text>
 </Button>
 ```
 
